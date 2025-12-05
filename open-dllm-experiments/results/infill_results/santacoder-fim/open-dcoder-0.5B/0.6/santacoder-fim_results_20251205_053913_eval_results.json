@@ -1,0 +1,21 @@
+{
+  "config": {
+    "model_path": "fredzzp/open-dcoder-0.5B",
+    "model_name": "open-dcoder-0.5B",
+    "task": "santacoder-fim",
+    "fix_middle_length": null,
+    "steps": 64,
+    "temperature": 0.6,
+    "top_p": 0.95,
+    "alg": "p2",
+    "alg_temp": 0.5,
+    "batch_size": 4,
+    "use_ddp": false,
+    "auto_eval": true,
+    "results_dir": "infill_results/santacoder-fim/open-dcoder-0.5B/0.6"
+  },
+  "results": {
+    "exact_match": 0.5599232981783318,
+    "count": 1043
+  }
+}
