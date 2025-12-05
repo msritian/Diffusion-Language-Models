@@ -1,161 +1,160 @@
-# Open-dLLM Experimentation Setup
+# Open-dLLM Experimentation
 
 **Status:** ✅ GPU-Ready | Full evaluation environment configured
 
-This directory contains all setup scripts, documentation, and results for experimenting with the Open-dLLM diffusion language model on code infilling benchmarks.
+Experiment setup for testing the **fredzzp/open-dcoder-0.5B** diffusion language model on code infilling benchmarks.
 
 ## 🚀 Quick Deploy on GPU
 
 ```bash
-# From repository root
 cd open-dllm-experiments
-bash gpu_setup.sh      # ~15 minutes
-bash run_evaluations.sh  # ~30-60 minutes
+bash gpu_setup.sh        # ~15 min: Installs all dependencies
+bash run_evaluations.sh  # ~30-60 min: Runs both benchmarks
 ```
 
-### Limitations Encountered
-1. **No CUDA Support**: macOS doesn't support CUDA, limiting us to CPU-only inference
-2. **Flash Attention Unavailable**: Flash attention (required for efficient inference) is not available on macOS
-3. **Slow CPU Inference**: Diffusion models require many sampling steps (50-512), making CPU inference very slow
-4. **PyTorch Version Conflicts**: Some dependencies (bytecheckpoint) require PyTorch <=2.5.0, but macOS ARM builds only start from 2.6.0+
+**Requirements:**
+- Linux with NVIDIA GPU (16GB+ VRAM recommended)
+- CUDA 12.1+
+- Python 3.8+
+- 50GB+ disk space
 
-### Successfully Installed Components
-- ✅ Transformers 4.54.1
-- ✅ Accelerate, Datasets, PEFT
-- ✅ Evaluation packages: lm-evaluation-harness, human-eval-infilling
-- ✅ Veomni package (Open-dLLM core)
-- ✅ Model loading: fredzzp/open-dcoder-0.5B can be loaded successfully
+## 📁 Files in This Directory
 
-### Partial/Skipped Components
-- ⚠️ flash-attn (not compatible with macOS)
-- ⚠️ liger-kernel (requires triton, which needs CUDA)
-- ⚠️ bytecheckpoint (PyTorch version conflict)
+| File | Purpose |
+|------|---------|
+| **gpu_setup.sh** | Complete GPU environment setup script |
+| **run_evaluations.sh** | Automated evaluation runner (both benchmarks) |
+| **GPU_DEPLOY.md** | Complete deployment guide with troubleshooting |
+| **QUICKSTART.md** | Quick start instructions and tips |
+| **WANDB_SETUP.md** | Wandb integration and visualization guide |
+| **sample_test.py** | CPU test script (optional, for testing) |
+| **results/** | Directory for storing evaluation results |
+| **visualizations/** | Directory for plots and graphs |
 
-## Repository Structure
+## 📊 Benchmarks
 
-```
-Open-dLLM/
-├── eval/
-│   ├── eval_completion/     # HumanEval, MBPP benchmarks
-│   └── eval_infill/         # HumanEval-Infill, SantaCoder-FIM
-├── experiments/             # Our experiment results (created)
-│   ├── visualizations/      # Graphs and plots
-│   └── results_summary.md   # Experiment documentation
-├── sample.py               # Basic inference script
-├── sample_test.py          # Our test script (CPU-compatible)
-└── veomni/                 # Core diffusion LM implementation
-```
+### HumanEval-Infill
+- **Dataset:** 164 single-line code infilling problems (Bavarian et al., 2022)
+- **Metric:** Pass@1 (unit test pass rate)
+- **Expected:** ~32.5% (fixed length) / ~77.4% (oracle length)
 
-## Usage
+### SantaCoder-FIM
+- **Dataset:** Python code infilling examples (Allal et al., 2023)
+- **Metrics:** Pass@1, Exact Match
+- **Expected:** ~29.6% EM (fixed) / ~56.4% EM (oracle)
 
-### Quick Test (CPU-only)
-```bash
-python sample_test.py
-```
+## 🎯 What Gets Evaluated
 
-This will:
-1. Load the fredzzp/open-dcoder-0.5B model
-2. Run a simple code generation task
-3. Save results to `test_output.txt`
+The evaluation automatically:
+1. Downloads the `fredzzp/open-dcoder-0.5B` model from Hugging Face
+2. Runs HumanEval-Infill with 164 code completion problems
+3. Runs SantaCoder-FIM on Python examples
+4. Computes Pass@1 and Exact Match metrics
+5. Logs everything to Wandb (if configured)
+6. Saves results in `../Open-dLLM/eval/eval_infill/infill_results/`
 
-**Note**: This is slow on CPU (~few minutes per generation with reduced steps)
+## ⚙️ Configuration
 
-### Full Evaluation (Requires GPU)
+Default settings in `run_evaluations.sh`:
 
-To run the complete evaluation benchmarks, you'll need a Linux machine with CUDA:
-
-#### HumanEval-Infill
-```bash
-cd eval/eval_infill
-bash run_eval.sh
-```
-
-#### SantaCoder-FIM
-The script `run_eval.sh` runs both benchmarks:
-- HumanEval-Infill: Tests Fill-in-the-Middle (FIM) on 164 problems
-- SantaCoder-FIM: Tests code infilling with exact match metrics
-
-**Configuration** (in `run_eval.sh`):
 ```bash
 MODEL_PATH="fredzzp/open-dcoder-0.5B"
-TEMPERATURE=0.6
-STEPS=64              # Diffusion sampling steps
-ALG="p2"              # Sampling algorithm
-BATCH_SIZE=32
+TEMPERATURE=0.6      # Sampling temperature
+STEPS=64             # Diffusion sampling steps
+ALG="p2"             # Probability-based sampling
+BATCH_SIZE=32        # Batch size for inference
 ```
 
-### Running on GPU (Recommended Workflow)
+### Customize Parameters:
 
-1. **Transfer this repository to a GPU instance**:
-   ```bash
-   # On your local machine
-   cd /Users/Shivam/Documents/Diffusion-Language-Models
-   git add Open-dLLM/
-   git commit -m "Add Open-dLLM setup for experimentation"
-   git push origin feature/open-dllm-experiments
-   
-   # On GPU machine (e.g., Google Colab, AWS, etc.)
-   git clone <your-repo>
-   git checkout feature/open-dllm-experiments
-   cd Open-dLLM
-   ```
+```bash
+export TEMPERATURE=0.8
+export STEPS=128
+export BATCH_SIZE=16
+bash run_evaluations.sh
+```
 
-2. **Install GPU-specific dependencies**:
-   ```bash
-   # Install CUDA-enabled PyTorch
-   pip install torch==2.5.0 --index-url https://download.pytorch.org/whl/cu121
-   
-   # Install flash attention
-   pip install "flash-attn==2.7.4.post1" \\
-     --extra-index-url https://github.com/Dao-AILab/flash-attention/releases/download
-   
-   # Install all remaining dependencies
-   pip install -e .
-   pip install -e lm-evaluation-harness human-eval-infilling
-   ```
+## 📈 Wandb Integration
 
-3. **Run evaluations**:
-   ```bash
-   cd eval/eval_infill
-   bash run_eval.sh
-   ```
+Wandb logging is **enabled by default** for experiment tracking:
 
-## Expected Results
+**What gets logged:**
+- Pass@1 and Exact Match metrics
+- All configuration parameters
+- Prediction files as artifacts
+- Run history and system metrics
 
-Based on the Open-dLLM paper, the expected performance metrics are:
+**Setup:**
+```bash
+wandb login  # One-time setup
+# Then run evaluations - everything logs automatically
+```
 
-| Benchmark | Metric | Expected Score (0.5B model) |
-|-----------|--------|----------------------------|
-| HumanEval-Infill | Pass@1 | ~32.5% (fixed length), ~77.4% (oracle length) |
-| SantaCoder-FIM | Exact Match | ~29.6% (fixed length), ~56.4% (oracle length) |
+**Wandb Project:** `eval-infill-dllm-step64-latest`
 
-Results will be saved in:
-- `eval/eval_infill/infill_results/<task>/<model>/<temperature>/`
-- JSON format with completions and evaluation metrics
+See [WANDB_SETUP.md](WANDB_SETUP.md) for complete details on visualization and making results public.
 
-## Next Steps
+## 📦 Results
 
-To complete the experimentation:
+After evaluation completes, find results in:
+```
+../Open-dLLM/eval/eval_infill/infill_results/
+├── humaneval_infill/
+│   └── open-dcoder-0.5B/
+│       └── 0.6/
+│           ├── humaneval_infill_results_TIMESTAMP.jsonl
+│           └── humaneval_infill_results_TIMESTAMP_eval_results.json
+└── santacoder-fim/
+    └── open-dcoder-0.5B/
+        └── 0.6/
+            ├── santacoder-fim_results_TIMESTAMP.jsonl
+            └── santacoder-fim_results_TIMESTAMP_eval_results.json
+```
 
-1. **Option A: Use GPU**
-   - Transfer this repository to a machine with CUDA
-   - Run the full evaluation suite
-   - Results will be automatically saved and can be synced back
+### Copy Results to Experiments Folder:
 
-2. **Option B: Use Cloud Services**
-   - Google Colab (free GPU access)
-   - AWS/GCP with GPU instances
-   - Paperspace, Lambda Labs, etc.
+```bash
+cp -r ../Open-dLLM/eval/eval_infill/infill_results results/
+git add results/
+git commit -m "Add evaluation results"
+git push origin feature/open-dllm-experiments
+```
 
-3. **Collect and Analyze Results**
-   - Evaluation scripts generate JSONL files with all predictions
-   - Automatic metrics calculation (Pass@1, Exact Match)
-   - Optional: wandb logging for experiment tracking
+## 🔧 Troubleshooting
 
-## Resources
+### CUDA Out of Memory
+```bash
+export BATCH_SIZE=8
+bash run_evaluations.sh
+```
 
-- [Open-dLLM GitHub](https://github.com/pengzhangzhi/Open-dLLM)
-- [Open-dLLM Blog Post](https://oval-shell-31c.notion.site/Open-Diffusion-Large-Language-Model-25e03bf6136480b7a4ebe3d53be9f68a)
-- [Model on Hugging Face](https://huggingface.co/fredzzp/open-dcoder-0.5B)
-- [HumanEval-Infill Benchmark](https://github.com/openai/human-eval)
-- [SantaCoder-FIM Dataset](https://huggingface.co/datasets/bigcode/santacoder-fim-task)
+### Wandb Not Logging
+```bash
+wandb login
+# Or set: export WANDB_API_KEY='your-key'
+```
+
+### Model Download Slow
+```bash
+export HF_HOME=/path/to/large/disk
+bash run_evaluations.sh
+```
+
+See [GPU_DEPLOY.md](GPU_DEPLOY.md) for complete troubleshooting guide.
+
+## 📚 Additional Documentation
+
+- **[GPU_DEPLOY.md](GPU_DEPLOY.md)** - Complete deployment guide with one-liners
+- **[QUICKSTART.md](QUICKSTART.md)** - Quick start with examples
+- **[WANDB_SETUP.md](WANDB_SETUP.md)** - Wandb integration details
+
+## 🔗 References
+
+- **Open-dLLM:** https://github.com/pengzhangzhi/Open-dLLM
+- **Model:** https://huggingface.co/fredzzp/open-dcoder-0.5B
+- **HumanEval:** https://github.com/openai/human-eval
+- **SantaCoder:** https://huggingface.co/datasets/bigcode/santacoder-fim-task
+
+---
+
+**Ready to deploy!** See [GPU_DEPLOY.md](GPU_DEPLOY.md) for step-by-step instructions.
