@@ -1,14 +1,17 @@
-# Open-dLLM Experimentation Setup - README
+# Open-dLLM Experimentation Setup
 
-## Overview
+**Status:** ✅ GPU-Ready | Full evaluation environment configured
 
-This directory contains the cloned [Open-dLLM repository](https://github.com/pengzhangzhi/Open-dLLM) for experimenting with diffusion language models for code generation and infilling tasks.
+This directory contains all setup scripts, documentation, and results for experimenting with the Open-dLLM diffusion language model on code infilling benchmarks.
 
-## Environment Constraints
+## 🚀 Quick Deploy on GPU
 
-⚠️ **Current Environment: macOS (ARM64) without CUDA**
-
-The Open-dLLM project and its evaluation benchmarks are optimized for Linux with CUDA-enabled GPUs. Running on macOS presents several limitations:
+```bash
+# From repository root
+cd open-dllm-experiments
+bash gpu_setup.sh      # ~15 minutes
+bash run_evaluations.sh  # ~30-60 minutes
+```
 
 ### Limitations Encountered
 1. **No CUDA Support**: macOS doesn't support CUDA, limiting us to CPU-only inference
