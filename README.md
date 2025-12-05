@@ -4,32 +4,11 @@ This repository contains experiments with diffusion-based language models for co
 
 ## 🎯 Project Overview
 
-Testing the **fredzzp/open-dcoder-0.5B** diffusion language model on standard code infilling benchmarks:
-- **HumanEval-Infill**: Fill-in-the-Middle (FIM) code generation
+Evaluation of the **fredzzp/open-dcoder-0.5B** diffusion language model on standard code infilling benchmarks:
+- **HumanEval-Infill**: Fill-in-the-Middle (FIM) with functional correctness testing
 - **SantaCoder-FIM**: Code infilling with exact match evaluation
 
-## 🚀 Quick Start (GPU Required)
-
-### One-Command Setup and Run
-
-On your GPU VM:
-
-```bash
-git clone https://github.com/msritian/Diffusion-Language-Models.git && \
-cd Diffusion-Language-Models && \
-git checkout feature/open-dllm-experiments && \
-cd open-dllm-experiments && \
-bash gpu_setup.sh && \
-bash run_evaluations.sh
-```
-
-**Time:** ~45-75 minutes (setup + evaluation)
-
-**Requirements:**
-- Linux with NVIDIA GPU (16GB+ VRAM recommended)
-- CUDA 12.1+
-- Python 3.8+
-- 50GB+ disk space
+**Results:** Both benchmarks complete with exceptional performance (see below).
 
 ## 📁 Repository Structure
 
