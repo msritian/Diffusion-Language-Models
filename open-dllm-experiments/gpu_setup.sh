@@ -32,7 +32,37 @@ fi
 
 echo ""
 echo "============================================================"
-echo "Step 1: Clone Open-dLLM Repository"
+echo "Step 1: Wandb Setup (Optional but Recommended)"
+echo "============================================================"
+
+if command -v wandb &> /dev/null; then
+    print_info "Wandb is already installed"
+    
+    # Check if wandb is logged in
+    if wandb login --relogin 2>&1 | grep -q "Successfully logged in"; then
+        print_success "Wandb authentication successful"
+    else
+        print_info "To enable wandb logging for experiment tracking:"
+        print_info "  1. Get your API key from: https://wandb.ai/authorize"
+        print_info "  2. Run: wandb login"
+        print_info "  OR set: export WANDB_API_KEY='your-key'"
+        echo ""
+        read -p "Do you want to login to wandb now? (y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            wandb login
+        else
+            print_info "Skipping wandb login. You can run 'wandb login' later."
+            print_info "Results will still be saved locally."
+        fi
+    fi
+else
+    print_info "Wandb will be installed with other dependencies"
+fi
+
+echo ""
+echo "============================================================"
+echo "Step 2: Clone Open-dLLM Repository"
 echo "============================================================"
 
 if [ -d "Open-dLLM" ]; then
@@ -47,7 +77,7 @@ cd Open-dLLM
 
 echo ""
 echo "============================================================"
-echo "Step 2: Install Dependencies"
+echo "Step 3: Install Dependencies"
 echo "============================================================"
 
 print_info "Installing system dependencies..."
@@ -75,7 +105,7 @@ print_success "Core dependencies installed"
 
 echo ""
 echo "============================================================"
-echo "Step 3: Install Evaluation Packages"
+echo "Step 4: Install Evaluation Packages"
 echo "============================================================"
 
 print_info "Installing evaluation harness..."
@@ -85,7 +115,7 @@ print_success "Evaluation packages installed"
 
 echo ""
 echo "============================================================"
-echo "Step 4: Verify Installation"
+echo "Step 5: Verify Installation"
 echo "============================================================"
 
 print_info "Verifying PyTorch and CUDA..."
