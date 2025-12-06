@@ -47,7 +47,19 @@ class FIMFormatter:
             
         elif self.fim_type == "deepseek":
             # DeepSeek: <｜fim begin｜>...<｜fim hole｜>...<｜fim end｜>
-            # Note: DeepSeek uses specific unicode characters for the bars
+            # Correct order: Prefix -> Hole -> Suffix -> End
+            # Wait, the search result says:
+            # 1. <｜fim begin｜>
+            # 2. Prefix
+            # 3. <｜fim hole｜>
+            # 4. Suffix
+            # 5. <｜fim end｜>
+            # This implies the model generates the MIDDLE after <｜fim end｜>? 
+            # OR does it generate the middle AT <｜fim hole｜>?
+            # No, usually FIM models generate the middle part at the end of the prompt.
+            # Let's look at the search result again carefully.
+            # "The model is trained to generate the 'middle' part... that logically connects the provided prefix and suffix."
+            # If the prompt ends with <｜fim end｜>, then the model generates after that.
             return f"<｜fim begin｜>{prefix}<｜fim hole｜>{suffix}<｜fim end｜>"
             
         elif self.fim_type == "starcoder":
@@ -204,6 +216,14 @@ def main():
     tokenizer.padding_side = "left"
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+
+    # Fix for DeepSeek FIM tokens being split
+    if "deepseek" in args.model_path.lower():
+        print("Adding DeepSeek FIM tokens to tokenizer...")
+        fim_tokens = ["<｜fim begin｜>", "<｜fim hole｜>", "<｜fim end｜>"]
+        tokenizer.add_special_tokens({"additional_special_tokens": fim_tokens})
+        # No need to resize embeddings as these tokens are already in the vocab (just not marked special)
+
         
     model = AutoModelForCausalLM.from_pretrained(
         args.model_path, 
