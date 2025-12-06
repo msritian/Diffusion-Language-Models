@@ -28,6 +28,18 @@ if [ ! -d "human-eval-infilling" ]; then
     echo "Cloning human-eval-infilling..."
     git clone https://github.com/openai/human-eval-infilling.git
 fi
+
+# Fix invalid entry point in setup.py
+sed -i 's/evaluate_functional_correctness:None/evaluate_functional_correctness:entry_point/g' human-eval-infilling/setup.py || true
+# Or better yet, just remove the entry point if we don't use it via CLI (we use python wrapper)
+# But let's try to fix it properly. The error says "A callable suffix is required".
+# It likely looks like "console_scripts": ["... = ...:None"] which is wrong.
+# Let's just install it without dependencies if possible, or fix the file.
+# Actually, the error comes from pip processing the package metadata.
+
+# Let's modify the setup.py to remove the problematic entry point since we use a wrapper script anyway.
+sed -i '/entry_points={/,/},/d' human-eval-infilling/setup.py
+
 pip install -e human-eval-infilling
 
 echo "Environment setup complete."
