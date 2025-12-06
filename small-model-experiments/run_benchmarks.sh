@@ -64,6 +64,11 @@ for MODEL_PATH in "${MODELS[@]}"; do
         echo "Error: Results file not found at $RESULTS_FILE"
     fi
     
+    echo "Cleaning up cache to free space..."
+    rm -rf ~/.cache/huggingface/hub
+    # Optional: Clear wandb artifacts if they are taking too much space
+    # wandb artifact cache cleanup 1GB
+    
     echo ""
 done
 
