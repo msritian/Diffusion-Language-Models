@@ -96,7 +96,8 @@ def evaluate_santacoder(model, tokenizer, args, formatter):
                 max_new_tokens=args.max_new_tokens,
                 temperature=args.temperature,
                 do_sample=True if args.temperature > 0 else False,
-                pad_token_id=tokenizer.eos_token_id
+                pad_token_id=tokenizer.eos_token_id,
+                eos_token_id=[tokenizer.eos_token_id, tokenizer.convert_tokens_to_ids("<file_sep>")] if "starcoder" in args.model_path.lower() else tokenizer.eos_token_id
             )
         
         for j, output in enumerate(outputs):
@@ -172,7 +173,8 @@ def evaluate_humaneval(model, tokenizer, args, formatter):
                 max_new_tokens=args.max_new_tokens,
                 temperature=args.temperature,
                 do_sample=True if args.temperature > 0 else False,
-                pad_token_id=tokenizer.eos_token_id
+                pad_token_id=tokenizer.eos_token_id,
+                eos_token_id=[tokenizer.eos_token_id, tokenizer.convert_tokens_to_ids("<file_sep>")] if "starcoder" in args.model_path.lower() else tokenizer.eos_token_id
             )
             
         for j, output in enumerate(outputs):
