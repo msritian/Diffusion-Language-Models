@@ -9,8 +9,8 @@ This experiment compares the diffusion-based **`fredzzp/open-dcoder-0.5B` (Open-
 
 | Metric | Open-dLLM (Diffusion) | Qwen 2.5 Coder 0.5B | Qwen 2.5 Coder 1.5B | DeepSeek Coder 1.3B | StarCoder2 3B |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **HumanEval-Infill (Pass@1)** | 76.48% | 74.15% | **80.25%** | 79.48% | *Pending* |
-| **SantaCoder-FIM (Exact Match)** | 55.99% | **64.91%** | 59.54% | 57.91% | *Pending* |
+| **HumanEval-Infill (Pass@1)** | 76.48% | 74.15% | **80.25%** | 79.48% | 75.61% |
+| **SantaCoder-FIM (Exact Match)** | 55.99% | **64.91%** | 59.54% | 57.91% | 56.66% |
 
 ## 🔍 Key Findings: The Diffusion Advantage
 
@@ -38,17 +38,17 @@ This experiment compares the diffusion-based **`fredzzp/open-dcoder-0.5B` (Open-
 *   **Qwen 0.5B:** 74.15% (766/1033)
 *   **Qwen 1.5B:** **80.25%** (829/1033)
 *   **DeepSeek 1.3B:** 79.48% (821/1033)
-*   **StarCoder2 3B:** *Running...*
+*   **StarCoder2 3B:** 75.61% (781/1033)
 
 ### SantaCoder-FIM (Exact Match)
 *   **Open-dLLM:** 55.99% (584/1043)
 *   **Qwen 0.5B:** **64.91%** (677/1043)
 *   **Qwen 1.5B:** 59.54% (621/1043)
 *   **DeepSeek 1.3B:** 57.91% (604/1043)
-*   **StarCoder2 3B:** *Running...*
+*   **StarCoder2 3B:** 56.66% (591/1043)
 
 ## 🚀 Conclusion
 
 *Pending final results from expanded benchmark suite.*
 
-Initial results show that **Open-dLLM demonstrates superior functional correctness (Pass@1)** compared to the similarly sized Qwen 0.5B. However, the larger **Qwen 1.5B** takes the lead in functional correctness, illustrating the impact of model scale. We are now verifying results for DeepSeek 1.3B and StarCoder2 3B.
+Initial results show that **Open-dLLM demonstrates superior functional correctness (Pass@1)** compared to the similarly sized Qwen 0.5B. However, the larger **Qwen 1.5B** takes the lead in functional correctness, illustrating the impact of model scale. DeepSeek 1.3B follows closely behind. StarCoder2 3B, despite being the largest model, underperforms on these specific FIM benchmarks compared to the smaller, more modern architectures.
