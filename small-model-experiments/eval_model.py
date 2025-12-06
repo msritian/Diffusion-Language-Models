@@ -46,9 +46,9 @@ class FIMFormatter:
             return f"<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>"
             
         elif self.fim_type == "deepseek":
-            # DeepSeek: <｜fim hole｜>{suffix}<｜fim begin｜>{prefix}<｜fim end｜>
-            # Based on debug results, SPM format (Format 2) seems to work best.
-            return f"<｜fim hole｜>{suffix}<｜fim begin｜>{prefix}<｜fim end｜>"
+            # DeepSeek: <｜fim begin｜>{prefix}<｜fim hole｜>{suffix}<｜fim end｜>
+            # Reverting to PSM as per official docs.
+            return f"<｜fim begin｜>{prefix}<｜fim hole｜>{suffix}<｜fim end｜>"
             
         elif self.fim_type == "starcoder":
             # StarCoder: <fim_prefix>...<fim_suffix>...<fim_middle>
