@@ -22,3 +22,16 @@ pip install human-eval-infilling
 pip install wandb
 
 echo "Environment setup complete."
+
+# WandB Setup
+echo "----------------------------------------------------------------"
+echo "WandB Setup"
+echo "----------------------------------------------------------------"
+if [ -z "$WANDB_API_KEY" ]; then
+    echo "WANDB_API_KEY is not set."
+    echo "Please run 'wandb login' manually or export your API key:"
+    echo "export WANDB_API_KEY='your-api-key'"
+else
+    echo "WANDB_API_KEY found. Logging in..."
+    wandb login
+fi

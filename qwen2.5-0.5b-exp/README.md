@@ -23,6 +23,17 @@ This will:
 - Install PyTorch, Transformers, and other required libraries
 - Install `human-eval-infilling` benchmark tools
 
+**WandB Setup:**
+The script will check for `WANDB_API_KEY`. If not set, please run:
+```bash
+source qwen-env/bin/activate
+wandb login
+```
+Or export your key before running benchmarks:
+```bash
+export WANDB_API_KEY="your-key-here"
+```
+
 ### 2. Run Evaluations
 
 Execute the benchmark driver script:

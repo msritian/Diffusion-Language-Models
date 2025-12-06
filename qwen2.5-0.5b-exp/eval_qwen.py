@@ -8,6 +8,7 @@ from tqdm import tqdm
 import gzip
 import shutil
 import wandb
+from torch.utils.data import DataLoader
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -15,32 +16,41 @@ def get_args():
     parser.add_argument("--task", type=str, required=True, choices=["santacoder-fim", "humaneval_infill"])
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--max_new_tokens", type=int, default=512)
-    parser.add_argument("--batch_size", type=int, default=1)
+    parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--output_dir", type=str, default="results")
     parser.add_argument("--wandb_project", type=str, default="qwen-code-infilling")
     parser.add_argument("--wandb_name", type=str, default=None)
     return parser.parse_args()
 
 def format_fim(prefix, suffix, tokenizer):
-    # Standard FIM tokens
     FIM_PREFIX = "<|fim_prefix|>"
     FIM_SUFFIX = "<|fim_suffix|>"
     FIM_MIDDLE = "<|fim_middle|>"
-    
     return f"{FIM_PREFIX}{prefix}{FIM_SUFFIX}{suffix}{FIM_MIDDLE}"
 
 def evaluate_santacoder(model, tokenizer, args):
     dataset = load_dataset("bigcode/santacoder-fim-task", split="train")
-    results = []
     
-    # Create a WandB Table
+    # Filter for Python only (to match the ~1000 examples in Open-dLLM experiments)
+    if "lang" in dataset.features:
+        dataset = dataset.filter(lambda x: x["lang"].lower() == "python")
+    elif "language" in dataset.features:
+        dataset = dataset.filter(lambda x: x["language"].lower() == "python")
+        
+    print(f"Evaluating on {len(dataset)} examples (filtered for Python)...")
+    
+    results = []
     table = wandb.Table(columns=["Task ID", "Prompt", "Suffix", "Canonical Solution", "Generated Code", "Exact Match"])
     
-    print(f"Evaluating on {len(dataset)} examples...")
+    # Prepare data for batching
+    prompts = [format_fim(ex["prompt"], ex["suffix"], tokenizer) for ex in dataset]
     
-    for i, example in tqdm(enumerate(dataset), total=len(dataset)):
-        prompt = format_fim(example["prompt"], example["suffix"], tokenizer)
-        inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    # Batch processing
+    for i in tqdm(range(0, len(dataset), args.batch_size)):
+        batch_prompts = prompts[i : i + args.batch_size]
+        batch_indices = range(i, min(i + args.batch_size, len(dataset)))
+        
+        inputs = tokenizer(batch_prompts, return_tensors="pt", padding=True, truncation=True).to(model.device)
         
         with torch.no_grad():
             outputs = model.generate(
@@ -51,29 +61,50 @@ def evaluate_santacoder(model, tokenizer, args):
                 pad_token_id=tokenizer.eos_token_id
             )
         
-        generated_text = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
-        
-        is_exact_match = generated_text.strip() == example["canonical_solution"].strip()
-        
-        results.append({
-            "task_id": i,
-            "prompt": example["prompt"],
-            "suffix": example["suffix"],
-            "canonical_solution": example["canonical_solution"],
-            "generated_code": generated_text,
-            "exact_match": is_exact_match
-        })
-        
-        # Add to table (limit to first 100 to avoid huge tables if dataset is large, or log all)
-        # Logging all might be heavy but useful. Let's log all.
-        table.add_data(
-            i, 
-            example["prompt"][:500], # Truncate for display if needed
-            example["suffix"][:500],
-            example["canonical_solution"],
-            generated_text,
-            is_exact_match
-        )
+        # Decode batch
+        for j, output in enumerate(outputs):
+            # The input length might vary per sample due to padding, but here we just skip the prompt length
+            # A safer way is to decode the new tokens only
+            input_len = inputs.input_ids[j].shape[0]
+            # Actually, inputs.input_ids is padded, so we need to be careful.
+            # But model.generate returns the full sequence.
+            # We can just decode the part after the input.
+            # However, with left padding (common for generation), it's tricky.
+            # Qwen tokenizer might use right padding by default?
+            # Let's decode everything and strip the prompt.
+            
+            full_text = tokenizer.decode(output, skip_special_tokens=False)
+            # Remove the FIM special tokens and prompt manually or just use the skip_special_tokens=True on the new part
+            # Let's try to just decode the new tokens.
+            # We know the input length.
+            # But wait, if we padded, the input_ids have padding.
+            
+            # Better approach:
+            generated_ids = output[inputs.input_ids.shape[1]:]
+            generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+            
+            idx = batch_indices[j]
+            example = dataset[idx]
+            
+            is_exact_match = generated_text.strip() == example["canonical_solution"].strip()
+            
+            results.append({
+                "task_id": idx,
+                "prompt": example["prompt"],
+                "suffix": example["suffix"],
+                "canonical_solution": example["canonical_solution"],
+                "generated_code": generated_text,
+                "exact_match": is_exact_match
+            })
+            
+            table.add_data(
+                idx, 
+                example["prompt"][:500],
+                example["suffix"][:500],
+                example["canonical_solution"],
+                generated_text,
+                is_exact_match
+            )
         
     # Calculate metrics
     exact_matches = sum(r["exact_match"] for r in results)
@@ -81,7 +112,6 @@ def evaluate_santacoder(model, tokenizer, args):
     
     print(f"SantaCoder-FIM Accuracy: {accuracy:.2%}")
     
-    # Log to wandb
     wandb.log({
         "santacoder_accuracy": accuracy,
         "santacoder_exact_matches": exact_matches,
@@ -104,15 +134,18 @@ def evaluate_humaneval(model, tokenizer, args):
         dataset = [json.loads(line) for line in f]
         
     results = []
-    
-    # Create WandB Table
     table = wandb.Table(columns=["Task ID", "Prompt", "Suffix", "Canonical Solution", "Generated Code"])
 
     print(f"Evaluating on {len(dataset)} examples...")
     
-    for example in tqdm(dataset):
-        prompt = format_fim(example["prompt"], example["suffix"], tokenizer)
-        inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
+    # Prepare prompts
+    prompts = [format_fim(ex["prompt"], ex["suffix"], tokenizer) for ex in dataset]
+    
+    for i in tqdm(range(0, len(dataset), args.batch_size)):
+        batch_prompts = prompts[i : i + args.batch_size]
+        batch_indices = range(i, min(i + args.batch_size, len(dataset)))
+        
+        inputs = tokenizer(batch_prompts, return_tensors="pt", padding=True, truncation=True).to(model.device)
         
         with torch.no_grad():
             outputs = model.generate(
@@ -123,20 +156,25 @@ def evaluate_humaneval(model, tokenizer, args):
                 pad_token_id=tokenizer.eos_token_id
             )
             
-        generated_text = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
-        
-        results.append({
-            "task_id": example["task_id"],
-            "completion": generated_text
-        })
-        
-        table.add_data(
-            example["task_id"],
-            example["prompt"][:500],
-            example["suffix"][:500],
-            example["canonical_solution"],
-            generated_text
-        )
+        for j, output in enumerate(outputs):
+            generated_ids = output[inputs.input_ids.shape[1]:]
+            generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+            
+            idx = batch_indices[j]
+            example = dataset[idx]
+            
+            results.append({
+                "task_id": example["task_id"],
+                "completion": generated_text
+            })
+            
+            table.add_data(
+                example["task_id"],
+                example["prompt"][:500],
+                example["suffix"][:500],
+                example["canonical_solution"],
+                generated_text
+            )
     
     wandb.log({
         "humaneval_generated_count": len(results),
@@ -157,6 +195,10 @@ def main():
     
     print(f"Loading model {args.model_path}...")
     tokenizer = AutoTokenizer.from_pretrained(args.model_path, trust_remote_code=True)
+    tokenizer.padding_side = "left" # Important for generation
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+        
     model = AutoModelForCausalLM.from_pretrained(
         args.model_path, 
         device_map="auto", 

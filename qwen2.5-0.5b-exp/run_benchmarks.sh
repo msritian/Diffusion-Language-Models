@@ -20,6 +20,7 @@ MODEL_PATH="Qwen/Qwen2.5-0.5B-Instruct"
 OUTPUT_DIR="results"
 TEMPERATURE=0.2
 MAX_NEW_TOKENS=512
+BATCH_SIZE=4
 
 echo "============================================================"
 echo "Running SantaCoder-FIM Evaluation"
@@ -30,6 +31,7 @@ python eval_qwen.py \
     --task santacoder-fim \
     --temperature "$TEMPERATURE" \
     --max_new_tokens "$MAX_NEW_TOKENS" \
+    --batch_size "$BATCH_SIZE" \
     --output_dir "$OUTPUT_DIR"
 
 echo ""
@@ -42,6 +44,7 @@ python eval_qwen.py \
     --task humaneval_infill \
     --temperature "$TEMPERATURE" \
     --max_new_tokens "$MAX_NEW_TOKENS" \
+    --batch_size "$BATCH_SIZE" \
     --output_dir "$OUTPUT_DIR"
 
 # Compute HumanEval metrics
