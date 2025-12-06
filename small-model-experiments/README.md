@@ -4,9 +4,10 @@ This directory contains scripts to evaluate multiple small-scale code models (0.
 
 ## 🤖 Models Evaluated
 
-1.  **Qwen 2.5 Coder 1.5B** (`Qwen/Qwen2.5-Coder-1.5B-Instruct`)
-2.  **DeepSeek Coder 1.3B** (`deepseek-ai/deepseek-coder-1.3b-instruct`)
-3.  **StarCoder2 3B** (`bigcode/starcoder2-3b`)
+1.  **Qwen 2.5 Coder 0.5B** (`Qwen/Qwen2.5-Coder-0.5B`)
+2.  **Qwen 2.5 Coder 1.5B** (`Qwen/Qwen2.5-Coder-1.5B-Instruct`)
+3.  **DeepSeek Coder 1.3B** (`deepseek-ai/deepseek-coder-1.3b-instruct`)
+4.  **StarCoder2 3B** (`bigcode/starcoder2-3b`)
 
 ## 📋 Prerequisites
 
