@@ -7,6 +7,7 @@ from datasets import load_dataset
 from tqdm import tqdm
 import gzip
 import shutil
+import wandb
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -16,6 +17,8 @@ def get_args():
     parser.add_argument("--max_new_tokens", type=int, default=512)
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--output_dir", type=str, default="results")
+    parser.add_argument("--wandb_project", type=str, default="qwen-code-infilling")
+    parser.add_argument("--wandb_name", type=str, default=None)
     return parser.parse_args()
 
 def format_fim(prefix, suffix, tokenizer):
@@ -24,15 +27,14 @@ def format_fim(prefix, suffix, tokenizer):
     FIM_SUFFIX = "<|fim_suffix|>"
     FIM_MIDDLE = "<|fim_middle|>"
     
-    # Check if tokenizer has these tokens, if not add them (though model might not understand them if not trained)
-    # Qwen 2.5 Base usually supports these. Instruct might treat them as text.
-    # For this experiment, we assume the model supports them or we use a prompt.
-    
     return f"{FIM_PREFIX}{prefix}{FIM_SUFFIX}{suffix}{FIM_MIDDLE}"
 
 def evaluate_santacoder(model, tokenizer, args):
     dataset = load_dataset("bigcode/santacoder-fim-task", split="test")
     results = []
+    
+    # Create a WandB Table
+    table = wandb.Table(columns=["Task ID", "Prompt", "Suffix", "Canonical Solution", "Generated Code", "Exact Match"])
     
     print(f"Evaluating on {len(dataset)} examples...")
     
@@ -49,11 +51,8 @@ def evaluate_santacoder(model, tokenizer, args):
                 pad_token_id=tokenizer.eos_token_id
             )
         
-        # Extract generated text (remove prompt)
         generated_text = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
         
-        # Check for exact match
-        # SantaCoder benchmark usually compares exact match after stripping
         is_exact_match = generated_text.strip() == example["canonical_solution"].strip()
         
         results.append({
@@ -65,16 +64,34 @@ def evaluate_santacoder(model, tokenizer, args):
             "exact_match": is_exact_match
         })
         
+        # Add to table (limit to first 100 to avoid huge tables if dataset is large, or log all)
+        # Logging all might be heavy but useful. Let's log all.
+        table.add_data(
+            i, 
+            example["prompt"][:500], # Truncate for display if needed
+            example["suffix"][:500],
+            example["canonical_solution"],
+            generated_text,
+            is_exact_match
+        )
+        
     # Calculate metrics
     exact_matches = sum(r["exact_match"] for r in results)
     accuracy = exact_matches / len(results)
     
     print(f"SantaCoder-FIM Accuracy: {accuracy:.2%}")
     
+    # Log to wandb
+    wandb.log({
+        "santacoder_accuracy": accuracy,
+        "santacoder_exact_matches": exact_matches,
+        "santacoder_total": len(results),
+        "santacoder_samples": table
+    })
+    
     return results, {"accuracy": accuracy}
 
 def evaluate_humaneval(model, tokenizer, args):
-    # Ensure dataset exists
     data_path = "HumanEval-SingleLineInfilling.jsonl"
     if not os.path.exists(data_path):
         print("Downloading HumanEval-Infill dataset...")
@@ -87,6 +104,10 @@ def evaluate_humaneval(model, tokenizer, args):
         dataset = [json.loads(line) for line in f]
         
     results = []
+    
+    # Create WandB Table
+    table = wandb.Table(columns=["Task ID", "Prompt", "Suffix", "Canonical Solution", "Generated Code"])
+
     print(f"Evaluating on {len(dataset)} examples...")
     
     for example in tqdm(dataset):
@@ -104,20 +125,35 @@ def evaluate_humaneval(model, tokenizer, args):
             
         generated_text = tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
         
-        # For HumanEval, we just save the completion. 
-        # The evaluation script will handle the rest.
-        # Note: generated_text might contain the suffix if the model doesn't stop.
-        # Ideally we should stop at the suffix or EOS.
-        
         results.append({
             "task_id": example["task_id"],
             "completion": generated_text
         })
         
+        table.add_data(
+            example["task_id"],
+            example["prompt"][:500],
+            example["suffix"][:500],
+            example["canonical_solution"],
+            generated_text
+        )
+    
+    wandb.log({
+        "humaneval_generated_count": len(results),
+        "humaneval_samples": table
+    })
+        
     return results, {}
 
 def main():
     args = get_args()
+    
+    # Initialize WandB
+    wandb.init(
+        project=args.wandb_project,
+        name=args.wandb_name or f"{args.task}-{args.model_path.split('/')[-1]}",
+        config=vars(args)
+    )
     
     print(f"Loading model {args.model_path}...")
     tokenizer = AutoTokenizer.from_pretrained(args.model_path, trust_remote_code=True)
@@ -146,6 +182,7 @@ def main():
             json.dump(metrics, f, indent=2)
             
     print(f"Results saved to {output_file}")
+    wandb.finish()
 
 if __name__ == "__main__":
     main()
