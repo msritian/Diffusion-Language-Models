@@ -51,10 +51,10 @@ python eval_qwen.py \
 echo ""
 echo "Computing HumanEval Metrics..."
 # The eval_qwen.py saves results to results/humaneval_infill_results.jsonl
-# We need to evaluate it using human_eval_infilling
-evaluate_functional_correctness \
-    "$OUTPUT_DIR/humaneval_infill_results.jsonl" \
-    --benchmark_name=single-line
+# The eval_qwen.py saves results to results/humaneval_infill_results.jsonl
+# We need to evaluate it using our wrapper script
+python evaluate_metrics.py \
+    "$OUTPUT_DIR/humaneval_infill_results.jsonl"
 
 echo ""
 echo "============================================================"
