@@ -15,6 +15,15 @@ else
     exit 1
 fi
 
+# Set environment variables for new disk
+export HF_HOME="/mnt/disks/data/huggingface"
+export WANDB_DIR="/mnt/disks/data/wandb"
+export WANDB_CACHE_DIR="/mnt/disks/data/wandb_cache"
+export PIP_CACHE_DIR="/mnt/disks/data/pip"
+
+# Create directories if they don't exist
+mkdir -p "$HF_HOME" "$WANDB_DIR" "$WANDB_CACHE_DIR" "$PIP_CACHE_DIR"
+
 # Configuration
 MODELS=(
     "Qwen/Qwen2.5-Coder-1.5B-Instruct"
