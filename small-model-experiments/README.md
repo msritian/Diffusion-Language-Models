@@ -1,10 +1,16 @@
-# Qwen 2.5 0.5B Code Infilling Experiments
+# Small Model Code Infilling Experiments
 
-This directory contains scripts to evaluate the Qwen 2.5 0.5B model on code infilling benchmarks (SantaCoder-FIM and HumanEval-Infill), designed to run on an NVIDIA L4 GPU.
+This directory contains scripts to evaluate multiple small-scale code models (0.5B - 3B parameters) on code infilling benchmarks (SantaCoder-FIM and HumanEval-Infill).
+
+## 🤖 Models Evaluated
+
+1.  **Qwen 2.5 Coder 1.5B** (`Qwen/Qwen2.5-Coder-1.5B-Instruct`)
+2.  **DeepSeek Coder 1.3B** (`deepseek-ai/deepseek-coder-1.3b-instruct`)
+3.  **StarCoder2 3B** (`bigcode/starcoder2-3b`)
 
 ## 📋 Prerequisites
 
-- Linux VM with NVIDIA GPU (L4 recommended)
+- Linux VM with NVIDIA GPU (L4 recommended, 24GB VRAM)
 - Python 3.8+
 - CUDA 12.1+
 
@@ -21,7 +27,7 @@ bash setup_env.sh
 This will:
 - Create a `qwen-env` virtual environment
 - Install PyTorch, Transformers, and other required libraries
-- Install `human-eval-infilling` benchmark tools
+- Configure cache paths (if using `/mnt/disks/data`)
 
 **WandB Setup:**
 The script will check for `WANDB_API_KEY`. If not set, please run:
@@ -43,28 +49,32 @@ bash run_benchmarks.sh
 ```
 
 This will:
+- Iterate through all configured models
 - Run **SantaCoder-FIM** evaluation
 - Run **HumanEval-Infill** evaluation
-- Save results to `results/` directory
+- Save results to `results/<model_name>/` directory
 - Compute and print metrics
+- **Automatically clear HF cache** after each model to save disk space
 
 ## 📂 Directory Structure
 
 - `setup_env.sh`: Environment setup script
-- `run_benchmarks.sh`: Main execution script
-- `eval_qwen.py`: Python script for model evaluation
+- `run_benchmarks.sh`: Main execution script (loops through models)
+- `eval_model.py`: Unified Python script for model evaluation (auto-detects FIM format)
+- `evaluate_humaneval_infill.py`: Standalone script for HumanEval metrics
 - `results/`: Directory where results will be saved
 
 ## ⚙️ Configuration
 
 You can modify `run_benchmarks.sh` to change:
-- `MODEL_PATH`: Default `Qwen/Qwen2.5-0.5B-Instruct`
-- `TEMPERATURE`: Default `0.2`
+- `MODELS`: List of Hugging Face model IDs
+- `TEMPERATURE`: Default `0.6`
 - `MAX_NEW_TOKENS`: Default `512`
+- `BATCH_SIZE`: Default `64`
 
 ## 📊 Results
 
-Results will be saved as JSONL files in `results/`.
+Results will be saved in `results/<model_name>/`:
 - `santacoder-fim_results.jsonl`
 - `humaneval_infill_results.jsonl`
-- `humaneval_infill_results.jsonl_results.jsonl` (Functional correctness output)
+- `humaneval_infill_metrics.json`
