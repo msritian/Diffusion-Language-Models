@@ -20,6 +20,7 @@ pip install torch --index-url https://download.pytorch.org/whl/cu121
 pip install transformers accelerate datasets
 pip install human-eval-infilling
 pip install wandb
+pip install flash-attn --no-build-isolation
 
 echo "Environment setup complete."
 

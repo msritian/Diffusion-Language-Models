@@ -204,7 +204,8 @@ def main():
         args.model_path, 
         device_map="auto", 
         torch_dtype=torch.bfloat16,
-        trust_remote_code=True
+        trust_remote_code=True,
+        attn_implementation="flash_attention_2"
     )
     
     if args.task == "santacoder-fim":

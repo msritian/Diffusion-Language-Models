@@ -20,7 +20,7 @@ MODEL_PATH="Qwen/Qwen2.5-0.5B-Instruct"
 OUTPUT_DIR="results"
 TEMPERATURE=0.2
 MAX_NEW_TOKENS=512
-BATCH_SIZE=4
+BATCH_SIZE=64
 
 echo "============================================================"
 echo "Running SantaCoder-FIM Evaluation"
