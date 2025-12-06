@@ -30,7 +30,7 @@ def format_fim(prefix, suffix, tokenizer):
     return f"{FIM_PREFIX}{prefix}{FIM_SUFFIX}{suffix}{FIM_MIDDLE}"
 
 def evaluate_santacoder(model, tokenizer, args):
-    dataset = load_dataset("bigcode/santacoder-fim-task", split="test")
+    dataset = load_dataset("bigcode/santacoder-fim-task", split="train")
     results = []
     
     # Create a WandB Table
