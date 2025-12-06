@@ -16,6 +16,7 @@ source qwen-env/bin/activate
 # Install dependencies
 echo "Installing dependencies..."
 pip install --upgrade pip
+pip install wheel packaging
 pip install torch --index-url https://download.pytorch.org/whl/cu121
 pip install transformers accelerate datasets
 pip install human-eval-infilling
