@@ -18,7 +18,7 @@ fi
 # Configuration
 MODELS=(
     "Qwen/Qwen2.5-Coder-1.5B-Instruct"
-    "deepseek-ai/deepseek-coder-1.3b-instruct"
+    "deepseek-ai/deepseek-coder-1.3b-base"
     "bigcode/starcoder2-3b"
 )
 OUTPUT_DIR="results"
