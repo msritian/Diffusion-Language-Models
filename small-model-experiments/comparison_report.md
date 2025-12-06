@@ -9,8 +9,8 @@ This experiment compares the diffusion-based **`fredzzp/open-dcoder-0.5B` (Open-
 
 | Metric | Open-dLLM (Diffusion) | Qwen 2.5 Coder 0.5B | Qwen 2.5 Coder 1.5B | DeepSeek Coder 1.3B | StarCoder2 3B |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **HumanEval-Infill (Pass@1)** | 76.48% | 74.15% | **80.25%** | *Pending* | *Pending* |
-| **SantaCoder-FIM (Exact Match)** | 55.99% | **64.91%** | 59.54% | *Pending* | *Pending* |
+| **HumanEval-Infill (Pass@1)** | 76.48% | 74.15% | **80.25%** | 79.48% | *Pending* |
+| **SantaCoder-FIM (Exact Match)** | 55.99% | **64.91%** | 59.54% | 57.91% | *Pending* |
 
 ## 🔍 Key Findings: The Diffusion Advantage
 
@@ -37,14 +37,14 @@ This experiment compares the diffusion-based **`fredzzp/open-dcoder-0.5B` (Open-
 *   **Open-dLLM:** 76.48% (790/1033)
 *   **Qwen 0.5B:** 74.15% (766/1033)
 *   **Qwen 1.5B:** **80.25%** (829/1033)
-*   **DeepSeek 1.3B:** *Running...*
+*   **DeepSeek 1.3B:** 79.48% (821/1033)
 *   **StarCoder2 3B:** *Running...*
 
 ### SantaCoder-FIM (Exact Match)
 *   **Open-dLLM:** 55.99% (584/1043)
 *   **Qwen 0.5B:** **64.91%** (677/1043)
 *   **Qwen 1.5B:** 59.54% (621/1043)
-*   **DeepSeek 1.3B:** *Running...*
+*   **DeepSeek 1.3B:** 57.91% (604/1043)
 *   **StarCoder2 3B:** *Running...*
 
 ## 🚀 Conclusion
