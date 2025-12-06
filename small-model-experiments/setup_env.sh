@@ -17,7 +17,7 @@ source qwen-env/bin/activate
 echo "Installing dependencies..."
 pip install --upgrade pip --no-cache-dir
 pip install wheel packaging --no-cache-dir
-pip install torch --index-url https://download.pytorch.org/whl/cu121 --no-cache-dir
+pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu121 --no-cache-dir
 pip install transformers accelerate datasets --no-cache-dir
 pip install human-eval-infilling --no-cache-dir
 pip install wandb --no-cache-dir
