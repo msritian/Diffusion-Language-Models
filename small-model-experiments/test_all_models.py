@@ -20,7 +20,8 @@ def test_model(model_path, fim_type):
         model_path, 
         torch_dtype=torch.bfloat16, 
         device_map="auto", 
-        trust_remote_code=True
+        trust_remote_code=True,
+        use_safetensors=True
     )
     
     prefix = "def add(a, b):\n    "
