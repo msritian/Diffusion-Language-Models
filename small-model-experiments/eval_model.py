@@ -47,8 +47,8 @@ class FIMFormatter:
             
         elif self.fim_type == "deepseek":
             # DeepSeek: <｜fim begin｜>{prefix}<｜fim hole｜>{suffix}<｜fim end｜>
-            # Reverting to PSM as per official docs.
-            return f"<｜fim begin｜>{prefix}<｜fim hole｜>{suffix}<｜fim end｜>"
+            # Note: Uses U+2581 ( ) instead of space
+            return f"<｜fim\u2581begin｜>{prefix}<｜fim\u2581hole｜>{suffix}<｜fim\u2581end｜>"
             
         elif self.fim_type == "starcoder":
             # StarCoder: <fim_prefix>...<fim_suffix>...<fim_middle>
@@ -207,13 +207,8 @@ def main():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    # Fix for DeepSeek FIM tokens being split
-    if "deepseek" in args.model_path.lower():
-        print("Adding DeepSeek FIM tokens to tokenizer...")
-        fim_tokens = ["<｜fim begin｜>", "<｜fim hole｜>", "<｜fim end｜>"]
-        tokenizer.add_special_tokens({"additional_special_tokens": fim_tokens})
-        # No need to resize embeddings as these tokens are already in the vocab (just not marked special)
-
+    # DeepSeek FIM tokens use U+2581 (Lower One Eighth Block) instead of space
+    # We do NOT need to add them as special tokens if we use the correct string.
         
     model = AutoModelForCausalLM.from_pretrained(
         args.model_path, 
