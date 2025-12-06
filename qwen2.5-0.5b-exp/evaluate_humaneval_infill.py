@@ -178,33 +178,36 @@ def unsafe_execute(problem, completion, result, timeout):
         rmtree = shutil.rmtree
         rmdir = os.rmdir
         chdir = os.chdir
-        reliability_guard()
-        
-        check_program = (
-            problem["prompt"]
-            + completion
-            + problem["suffix"]
-            + "\n"
-            + problem["test"]
-            + "\n"
-            + f"check({problem['entry_point']})"
-        )
         
         try:
-            exec_globals = {}
-            with swallow_io():
-                with time_limit(timeout):
-                    # UNCOMMENTED EXECUTION LINE
-                    exec(check_program, exec_globals)
-            result.append("passed")
-        except TimeoutException:
-            result.append("timed out")
-        except BaseException as e:
-            result.append(f"failed: {e}")
-        
-        shutil.rmtree = rmtree
-        os.rmdir = rmdir
-        os.chdir = chdir
+            reliability_guard()
+            
+            check_program = (
+                problem["prompt"]
+                + completion
+                + problem["suffix"]
+                + "\n"
+                + problem["test"]
+                + "\n"
+                + f"check({problem['entry_point']})"
+            )
+            
+            try:
+                exec_globals = {}
+                with swallow_io():
+                    with time_limit(timeout):
+                        # UNCOMMENTED EXECUTION LINE
+                        exec(check_program, exec_globals)
+                result.append("passed")
+            except TimeoutException:
+                result.append("timed out")
+            except BaseException as e:
+                result.append(f"failed: {e}")
+        finally:
+            # Always restore system functions, otherwise tempfile cleanup fails
+            shutil.rmtree = rmtree
+            os.rmdir = rmdir
+            os.chdir = chdir
 
 def check_correctness(problem: Dict, completion: str, timeout: float, completion_id: Optional[int] = None) -> Dict:
     manager = multiprocessing.Manager()
