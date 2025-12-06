@@ -16,7 +16,7 @@ else
 fi
 
 # Configuration
-MODEL_PATH="Qwen/Qwen2.5-0.5B"
+MODEL_PATH="Qwen/Qwen2.5-Coder-0.5B"
 OUTPUT_DIR="results"
 TEMPERATURE=0.6
 MAX_NEW_TOKENS=512
