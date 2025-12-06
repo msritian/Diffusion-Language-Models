@@ -26,12 +26,29 @@ TEMPERATURE=0.6
 MAX_NEW_TOKENS=512
 BATCH_SIZE=64
 
+# Memory Optimization
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
+
 for MODEL_PATH in "${MODELS[@]}"; do
     echo "============================================================"
     echo "Evaluating Model: $MODEL_PATH"
     echo "============================================================"
     
     MODEL_NAME=$(basename "$MODEL_PATH")
+    RESULTS_FILE="$OUTPUT_DIR/$MODEL_NAME/humaneval_infill_results.jsonl"
+    
+    # Skip if already done
+    if [ -f "$RESULTS_FILE" ]; then
+        echo "Results found for $MODEL_NAME. Skipping..."
+        continue
+    fi
+
+    # Adjust batch size for larger models to avoid OOM
+    CURRENT_BATCH_SIZE=$BATCH_SIZE
+    if [[ "$MODEL_NAME" == *"starcoder2-3b"* ]] || [[ "$MODEL_NAME" == *"deepseek"* ]]; then
+        CURRENT_BATCH_SIZE=16
+        echo "Reduced batch size to $CURRENT_BATCH_SIZE for $MODEL_NAME"
+    fi
 
     # 1. SantaCoder-FIM
     echo "Running SantaCoder-FIM..."
@@ -40,7 +57,7 @@ for MODEL_PATH in "${MODELS[@]}"; do
         --task santacoder-fim \
         --temperature "$TEMPERATURE" \
         --max_new_tokens "$MAX_NEW_TOKENS" \
-        --batch_size "$BATCH_SIZE" \
+        --batch_size "$CURRENT_BATCH_SIZE" \
         --output_dir "$OUTPUT_DIR"
 
     # 2. HumanEval-Infill
@@ -50,13 +67,11 @@ for MODEL_PATH in "${MODELS[@]}"; do
         --task humaneval_infill \
         --temperature "$TEMPERATURE" \
         --max_new_tokens "$MAX_NEW_TOKENS" \
-        --batch_size "$BATCH_SIZE" \
+        --batch_size "$CURRENT_BATCH_SIZE" \
         --output_dir "$OUTPUT_DIR"
 
     # 3. Compute HumanEval Metrics
     echo "Computing HumanEval Metrics..."
-    # The results are saved in results/$MODEL_NAME/humaneval_infill_results.jsonl
-    RESULTS_FILE="$OUTPUT_DIR/$MODEL_NAME/humaneval_infill_results.jsonl"
     
     if [ -f "$RESULTS_FILE" ]; then
         python evaluate_humaneval_infill.py "$RESULTS_FILE"
