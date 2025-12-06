@@ -79,3 +79,12 @@ Results will be saved in `results/<model_name>/`:
 - `santacoder-fim_results.jsonl`
 - `humaneval_infill_results.jsonl`
 - `humaneval_infill_metrics.json`
+
+### Current Results
+
+| Model | HumanEval-Infill (Pass@1) | SantaCoder-FIM (Exact Match) |
+| :--- | :--- | :--- |
+| **Qwen 2.5 Coder 0.5B** | 74.15% | 64.91% |
+| **Qwen 2.5 Coder 1.5B** | 80.25% | 59.54% |
+| **DeepSeek Coder 1.3B** | 79.48% | 57.91% |
+| **StarCoder2 3B** | *Pending* | *Pending* |
