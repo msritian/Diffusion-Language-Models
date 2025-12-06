@@ -31,7 +31,7 @@ def test_model(model_path, fim_type):
     if fim_type == "qwen":
         prompt = f"<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>"
     elif fim_type == "deepseek":
-        prompt = f"<｜fim begin｜>{prefix}<｜fim hole｜>{suffix}<｜fim end｜>"
+        prompt = f"<｜fim hole｜>{suffix}<｜fim begin｜>{prefix}<｜fim end｜>"
     elif fim_type == "starcoder":
         prompt = f"<fim_prefix>{prefix}<fim_suffix>{suffix}<fim_middle>"
         

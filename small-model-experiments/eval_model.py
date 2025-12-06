@@ -46,21 +46,9 @@ class FIMFormatter:
             return f"<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>"
             
         elif self.fim_type == "deepseek":
-            # DeepSeek: <｜fim begin｜>...<｜fim hole｜>...<｜fim end｜>
-            # Correct order: Prefix -> Hole -> Suffix -> End
-            # Wait, the search result says:
-            # 1. <｜fim begin｜>
-            # 2. Prefix
-            # 3. <｜fim hole｜>
-            # 4. Suffix
-            # 5. <｜fim end｜>
-            # This implies the model generates the MIDDLE after <｜fim end｜>? 
-            # OR does it generate the middle AT <｜fim hole｜>?
-            # No, usually FIM models generate the middle part at the end of the prompt.
-            # Let's look at the search result again carefully.
-            # "The model is trained to generate the 'middle' part... that logically connects the provided prefix and suffix."
-            # If the prompt ends with <｜fim end｜>, then the model generates after that.
-            return f"<｜fim begin｜>{prefix}<｜fim hole｜>{suffix}<｜fim end｜>"
+            # DeepSeek: <｜fim hole｜>{suffix}<｜fim begin｜>{prefix}<｜fim end｜>
+            # Based on debug results, SPM format (Format 2) seems to work best.
+            return f"<｜fim hole｜>{suffix}<｜fim begin｜>{prefix}<｜fim end｜>"
             
         elif self.fim_type == "starcoder":
             # StarCoder: <fim_prefix>...<fim_suffix>...<fim_middle>
