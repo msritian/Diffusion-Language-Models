@@ -31,6 +31,12 @@ def format_fim(prefix, suffix, tokenizer):
 def evaluate_santacoder(model, tokenizer, args):
     dataset = load_dataset("bigcode/santacoder-fim-task", split="train")
     
+    print(f"Dataset Columns: {dataset.column_names}")
+    if "language" in dataset.column_names:
+        print(f"Unique languages: {set(dataset['language'])}")
+    elif "lang" in dataset.column_names:
+        print(f"Unique languages: {set(dataset['lang'])}")
+    
     # Filter for Python only (to match the ~1000 examples in Open-dLLM experiments)
     if "lang" in dataset.features:
         dataset = dataset.filter(lambda x: x["lang"].lower() == "python")
@@ -39,6 +45,10 @@ def evaluate_santacoder(model, tokenizer, args):
         
     print(f"Evaluating on {len(dataset)} examples (filtered for Python)...")
     
+    if len(dataset) == 0:
+        print("Error: No examples found after filtering! Check the language column values above.")
+        return [], {"accuracy": 0.0}
+
     results = []
     table = wandb.Table(columns=["Task ID", "Prompt", "Suffix", "Canonical Solution", "Generated Code", "Exact Match"])
     
