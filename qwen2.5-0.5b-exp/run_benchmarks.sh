@@ -52,8 +52,8 @@ echo ""
 echo "Computing HumanEval Metrics..."
 # The eval_qwen.py saves results to results/humaneval_infill_results.jsonl
 # The eval_qwen.py saves results to results/humaneval_infill_results.jsonl
-# We need to evaluate it using our wrapper script
-python evaluate_metrics.py \
+# We need to evaluate it using our standalone script
+python evaluate_humaneval_infill.py \
     "$OUTPUT_DIR/humaneval_infill_results.jsonl"
 
 echo ""
