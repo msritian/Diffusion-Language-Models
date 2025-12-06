@@ -40,6 +40,10 @@ sed -i 's/evaluate_functional_correctness:None/evaluate_functional_correctness:e
 # Let's modify the setup.py to remove the problematic entry point since we use a wrapper script anyway.
 sed -i '/entry_points={/,/},/d' human-eval-infilling/setup.py
 
+# Uncomment the exec line in execution.py (required to actually run the code)
+# The repo forces users to uncomment this manually for safety, but we need to automate it.
+sed -i 's/#                     exec(check_program, exec_globals)/                    exec(check_program, exec_globals)/' human-eval-infilling/human_eval_infilling/execution.py
+
 pip install -e human-eval-infilling
 
 echo "Environment setup complete."
