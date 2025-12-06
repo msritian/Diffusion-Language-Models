@@ -12,27 +12,54 @@ from torch.utils.data import DataLoader
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
+    parser.add_argument("--model_path", type=str, required=True, help="HuggingFace model path")
     parser.add_argument("--task", type=str, required=True, choices=["santacoder-fim", "humaneval_infill"])
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--max_new_tokens", type=int, default=512)
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument("--output_dir", type=str, default="results")
-    parser.add_argument("--wandb_project", type=str, default="qwen-code-infilling")
+    parser.add_argument("--wandb_project", type=str, default="code-infilling-benchmarks")
     parser.add_argument("--wandb_name", type=str, default=None)
     return parser.parse_args()
 
-def format_fim(prefix, suffix, tokenizer):
-    FIM_PREFIX = "<|fim_prefix|>"
-    FIM_SUFFIX = "<|fim_suffix|>"
-    FIM_MIDDLE = "<|fim_middle|>"
-    return f"{FIM_PREFIX}{prefix}{FIM_SUFFIX}{suffix}{FIM_MIDDLE}"
+class FIMFormatter:
+    def __init__(self, model_path, tokenizer):
+        self.model_path = model_path
+        self.tokenizer = tokenizer
+        self.fim_type = self._detect_fim_type()
+        
+    def _detect_fim_type(self):
+        name = self.model_path.lower()
+        if "qwen" in name:
+            return "qwen"
+        elif "deepseek" in name:
+            return "deepseek"
+        elif "starcoder" in name or "santa" in name:
+            return "starcoder"
+        else:
+            print(f"Warning: Unknown model type for {self.model_path}. Defaulting to StarCoder format.")
+            return "starcoder"
 
-def evaluate_santacoder(model, tokenizer, args):
+    def format(self, prefix, suffix):
+        if self.fim_type == "qwen":
+            # Qwen: <|fim_prefix|>...<|fim_suffix|>...<|fim_middle|>
+            return f"<|fim_prefix|>{prefix}<|fim_suffix|>{suffix}<|fim_middle|>"
+            
+        elif self.fim_type == "deepseek":
+            # DeepSeek: <｜fim begin｜>...<｜fim hole｜>...<｜fim end｜>
+            # Note: DeepSeek uses specific unicode characters for the bars
+            return f"<｜fim begin｜>{prefix}<｜fim hole｜>{suffix}<｜fim end｜>"
+            
+        elif self.fim_type == "starcoder":
+            # StarCoder: <fim_prefix>...<fim_suffix>...<fim_middle>
+            return f"<fim_prefix>{prefix}<fim_suffix>{suffix}<fim_middle>"
+            
+        return f"{prefix}{suffix}"
+
+def evaluate_santacoder(model, tokenizer, args, formatter):
     dataset = load_dataset("bigcode/santacoder-fim-task", split="train")
     
-    # Filter for Python only (to match the ~1000 examples in Open-dLLM experiments)
-    # The dataset uses 'py' for Python
+    # Filter for Python only
     if "lang" in dataset.features:
         dataset = dataset.filter(lambda x: x["lang"] == "py")
     elif "language" in dataset.features:
@@ -43,10 +70,8 @@ def evaluate_santacoder(model, tokenizer, args):
     results = []
     table = wandb.Table(columns=["Task ID", "Prompt", "Suffix", "Canonical Solution", "Generated Code", "Exact Match"])
     
-    # Prepare data for batching
-    prompts = [format_fim(ex["prompt"], ex["suffix"], tokenizer) for ex in dataset]
+    prompts = [formatter.format(ex["prompt"], ex["suffix"]) for ex in dataset]
     
-    # Batch processing
     for i in tqdm(range(0, len(dataset), args.batch_size)):
         batch_prompts = prompts[i : i + args.batch_size]
         batch_indices = range(i, min(i + args.batch_size, len(dataset)))
@@ -62,25 +87,8 @@ def evaluate_santacoder(model, tokenizer, args):
                 pad_token_id=tokenizer.eos_token_id
             )
         
-        # Decode batch
         for j, output in enumerate(outputs):
-            # The input length might vary per sample due to padding, but here we just skip the prompt length
-            # A safer way is to decode the new tokens only
-            input_len = inputs.input_ids[j].shape[0]
-            # Actually, inputs.input_ids is padded, so we need to be careful.
-            # But model.generate returns the full sequence.
-            # We can just decode the part after the input.
-            # However, with left padding (common for generation), it's tricky.
-            # Qwen tokenizer might use right padding by default?
-            # Let's decode everything and strip the prompt.
-            
-            full_text = tokenizer.decode(output, skip_special_tokens=False)
-            # Remove the FIM special tokens and prompt manually or just use the skip_special_tokens=True on the new part
-            # Let's try to just decode the new tokens.
-            # We know the input length.
-            # But wait, if we padded, the input_ids have padding.
-            
-            # Better approach:
+            # Decode only the new tokens
             generated_ids = output[inputs.input_ids.shape[1]:]
             generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
             
@@ -107,7 +115,6 @@ def evaluate_santacoder(model, tokenizer, args):
                 is_exact_match
             )
         
-    # Calculate metrics
     exact_matches = sum(r["exact_match"] for r in results)
     accuracy = exact_matches / len(results)
     
@@ -122,7 +129,7 @@ def evaluate_santacoder(model, tokenizer, args):
     
     return results, {"accuracy": accuracy}
 
-def evaluate_humaneval(model, tokenizer, args):
+def evaluate_humaneval(model, tokenizer, args, formatter):
     data_path = "HumanEval-SingleLineInfilling.jsonl"
     if not os.path.exists(data_path):
         print("Downloading HumanEval-Infill dataset...")
@@ -139,8 +146,7 @@ def evaluate_humaneval(model, tokenizer, args):
 
     print(f"Evaluating on {len(dataset)} examples...")
     
-    # Prepare prompts
-    prompts = [format_fim(ex["prompt"], ex["suffix"], tokenizer) for ex in dataset]
+    prompts = [formatter.format(ex["prompt"], ex["suffix"]) for ex in dataset]
     
     for i in tqdm(range(0, len(dataset), args.batch_size)):
         batch_prompts = prompts[i : i + args.batch_size]
@@ -187,7 +193,6 @@ def evaluate_humaneval(model, tokenizer, args):
 def main():
     args = get_args()
     
-    # Initialize WandB
     wandb.init(
         project=args.wandb_project,
         name=args.wandb_name or f"{args.task}-{args.model_path.split('/')[-1]}",
@@ -196,7 +201,7 @@ def main():
     
     print(f"Loading model {args.model_path}...")
     tokenizer = AutoTokenizer.from_pretrained(args.model_path, trust_remote_code=True)
-    tokenizer.padding_side = "left" # Important for generation
+    tokenizer.padding_side = "left"
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
         
@@ -208,21 +213,28 @@ def main():
         attn_implementation="sdpa"
     )
     
+    formatter = FIMFormatter(args.model_path, tokenizer)
+    print(f"Detected FIM type: {formatter.fim_type}")
+    
     if args.task == "santacoder-fim":
-        results, metrics = evaluate_santacoder(model, tokenizer, args)
+        results, metrics = evaluate_santacoder(model, tokenizer, args, formatter)
     elif args.task == "humaneval_infill":
-        results, metrics = evaluate_humaneval(model, tokenizer, args)
+        results, metrics = evaluate_humaneval(model, tokenizer, args, formatter)
         
-    # Save results
     os.makedirs(args.output_dir, exist_ok=True)
-    output_file = os.path.join(args.output_dir, f"{args.task}_results.jsonl")
+    # Create model-specific output directory
+    model_name = args.model_path.split('/')[-1]
+    model_output_dir = os.path.join(args.output_dir, model_name)
+    os.makedirs(model_output_dir, exist_ok=True)
+    
+    output_file = os.path.join(model_output_dir, f"{args.task}_results.jsonl")
     
     with open(output_file, 'w') as f:
         for r in results:
             f.write(json.dumps(r) + "\n")
             
     if metrics:
-        with open(os.path.join(args.output_dir, f"{args.task}_metrics.json"), 'w') as f:
+        with open(os.path.join(model_output_dir, f"{args.task}_metrics.json"), 'w') as f:
             json.dump(metrics, f, indent=2)
             
     print(f"Results saved to {output_file}")
