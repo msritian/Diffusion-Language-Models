@@ -23,6 +23,13 @@ pip install human-eval-infilling
 pip install wandb
 # pip install flash-attn --no-build-isolation  # Disabled due to GLIBC issues
 
+# Install human-eval-infilling from source (required for evaluation)
+if [ ! -d "human-eval-infilling" ]; then
+    echo "Cloning human-eval-infilling..."
+    git clone https://github.com/openai/human-eval-infilling.git
+fi
+pip install -e human-eval-infilling
+
 echo "Environment setup complete."
 
 # WandB Setup
