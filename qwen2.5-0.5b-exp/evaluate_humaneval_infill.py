@@ -163,7 +163,13 @@ def reliability_guard(maximum_memory_bytes: Optional[int] = None):
     shutil.chown = None
     import subprocess
     subprocess.Popen = None
-    __builtins__["help"] = None
+    
+    try:
+        __builtins__["help"] = None
+    except TypeError:
+        # __builtins__ can be a module
+        setattr(__builtins__, "help", None)
+    
     import sys
     sys.modules["ipdb"] = None
     sys.modules["joblib"] = None
