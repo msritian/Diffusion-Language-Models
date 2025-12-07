@@ -35,13 +35,31 @@ Diffusion-Language-Models/
 | **HumanEval-Infill** | Pass@1 | **76.48%** | ~77.4% (oracle) | ✅ Exceptional |
 | **SantaCoder-FIM** | Exact Match | **55.99%** | ~56.4% (oracle) | ✅ On par |
 
+### 🏆 Comparative Analysis: Diffusion vs. Autoregressive Models
+
+We compared **Open-dLLM (0.5B)** against state-of-the-art autoregressive baselines.
+
+| Metric | Open-dLLM (Diffusion) | Qwen 2.5 Coder 0.5B | Qwen 2.5 Coder 1.5B | DeepSeek Coder 1.3B | StarCoder2 3B |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **HumanEval-Infill (Pass@1)** | **76.48%** | 74.15% | **80.25%** | 79.48% | 75.61% |
+| **SantaCoder-FIM (Exact Match)** | 55.99% | **64.91%** | 59.54% | 57.91% | 56.66% |
+
+**Key Findings:**
+1.  **Superior Functional Correctness**: Open-dLLM (76.48%) outperforms the similarly sized Qwen 2.5 Coder 0.5B (74.15%) on HumanEval-Infill.
+2.  **Scaling Laws**: Larger models like Qwen 1.5B (80.25%) still hold an advantage, but the 0.5B diffusion model punches above its weight.
+3.  **Global Context**: The diffusion process allows for better bidirectional context modeling, leading to higher functional accuracy even if exact match scores are lower.
+
 **View Results:**
 - **[Results Summary](open-dllm-experiments/results/results_summary.md)** - Complete analysis
+- **[Comparison Report](small-model-experiments/comparison_report.md)** - Diffusion vs. Autoregressive models
 - **[Wandb Dashboard](https://wandb.ai/mittalshivam003-iron-mountain/eval-infill-dllm-step64-latest)** - Live metrics
 
 ## 🛠️ Reproduction Guide
 
 Follow these steps to reproduce the evaluation results:
+
+> [!NOTE]
+> For specific setup details regarding the small model experiments (Qwen, DeepSeek, StarCoder2), please refer to the [Small Model Experiments README](small-model-experiments/README.md).
 
 ### Prerequisites
 
@@ -264,8 +282,3 @@ See [LICENSE](LICENSE) file for details.
 
 This project builds on the Open-dLLM framework by Pengzhangzhi et al. and uses the fredzzp/open-dcoder-0.5B model for code generation experiments.
 
----
-
-**Status:** ✅ Ready for GPU deployment  
-**Branch:** `feature/open-dllm-experiments`  
-**Last Updated:** 2025-12-04
