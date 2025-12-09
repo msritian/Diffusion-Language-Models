@@ -1,0 +1,36 @@
+# Ensemble Experiments Requirements
+# Install with: pip install -r requirements.txt
+
+# Core ML Libraries
+torch>=2.0.0
+torchvision
+torchaudio
+transformers>=4.40.0
+accelerate>=0.20.0
+
+# Dataset and Evaluation
+datasets>=2.14.0
+evaluate>=0.4.0
+
+# Tokenization
+sentencepiece>=0.1.99
+protobuf>=3.20.0
+
+# Utilities
+tqdm>=4.65.0
+numpy>=1.24.0
+scipy>=1.10.0
+
+# Experiment Tracking
+wandb>=0.15.0
+
+# Development
+pytest>=7.3.0
+black>=23.0.0
+flake8>=6.0.0
+
+# Note: human-eval-infilling should be installed separately:
+# pip install -e ../Open-dLLM/human-eval-infilling
+# or
+# pip install git+https://github.com/openai/human-eval-infilling.git
+

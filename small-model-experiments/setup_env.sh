@@ -15,12 +15,12 @@ source qwen-env/bin/activate
 
 # Install dependencies
 echo "Installing dependencies..."
-pip install --upgrade pip --no-cache-dir
-pip install wheel packaging --no-cache-dir
-pip install torch --index-url https://download.pytorch.org/whl/cu121 --no-cache-dir
-pip install transformers accelerate datasets --no-cache-dir
-pip install human-eval-infilling --no-cache-dir
-pip install wandb --no-cache-dir
+pip3 install --upgrade pip --no-cache-dir
+pip3 install wheel packaging --no-cache-dir
+pip3 install torch --index-url https://download.pytorch.org/whl/cu121 --no-cache-dir
+pip3 install transformers accelerate datasets --no-cache-dir
+pip3 install human-eval-infilling --no-cache-dir
+pip3 install wandb --no-cache-dir
 # pip install flash-attn --no-build-isolation  # Disabled due to GLIBC issues
 
 # Install human-eval-infilling from source (required for evaluation)
