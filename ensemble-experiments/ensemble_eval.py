@@ -51,6 +51,8 @@ def get_args():
     parser.add_argument("--perplexity_model", type=str, default="qwen",
                         choices=["qwen", "dllm", "both"],
                         help="Which model to use for perplexity calculation")
+    parser.add_argument("--limit", type=int, default=None,
+                        help="Limit number of examples for testing")
     return parser.parse_args()
 
 
@@ -62,7 +64,7 @@ class OpenDLLMGenerator:
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
         self.model = DiffusionQwen2.from_pretrained(
             model_path,
-            torch_dtype=torch.bfloat16,
+            torch_dtype=torch.float32,
             trust_remote_code=True
         ).to(device).eval()
         self.device = device
@@ -140,10 +142,10 @@ class QwenFIMGenerator:
             
         self.model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            device_map="auto",
-            torch_dtype=torch.bfloat16,
+            device_map=device,  # Use explicit device instead of auto
+            torch_dtype=torch.float32,
             trust_remote_code=True,
-            attn_implementation="sdpa",
+            attn_implementation="eager", # sdpa might cause issues on CPU sometimes
             use_safetensors=True
         )
         self.device = device
@@ -255,6 +257,14 @@ def evaluate_ensemble(args):
         task_ids = list(range(len(dataset)))
     
     print(f"Loaded {len(dataset)} examples")
+    
+    if args.limit:
+        print(f"Limiting to {args.limit} examples")
+        dataset = dataset[:args.limit]
+        prefixes = prefixes[:args.limit]
+        suffixes = suffixes[:args.limit]
+        canonical_solutions = canonical_solutions[:args.limit]
+        task_ids = task_ids[:args.limit]
     
     # Calculate middle lengths for Open-dLLM (oracle setting)
     middle_lens = [
