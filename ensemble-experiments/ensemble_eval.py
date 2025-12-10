@@ -53,19 +53,22 @@ def get_args():
                         help="Which model to use for perplexity calculation")
     parser.add_argument("--limit", type=int, default=None,
                         help="Limit number of examples for testing")
+    parser.add_argument("--device", type=str, default="auto",
+                        help="Device to use (auto, cuda, mps, cpu)")
     return parser.parse_args()
 
 
 class OpenDLLMGenerator:
     """Generator for Open-dLLM diffusion model"""
     
-    def __init__(self, model_path: str, device: str = "cuda"):
+    def __init__(self, model_path: str, device: str = "cuda", dtype=torch.bfloat16, attn_impl="sdpa"):
         print(f"Loading Open-dLLM model: {model_path}")
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
         self.model = DiffusionQwen2.from_pretrained(
             model_path,
-            torch_dtype=torch.float32,
-            trust_remote_code=True
+            torch_dtype=dtype,
+            trust_remote_code=True,
+            attn_implementation=attn_impl if attn_impl != "eager" else None # Handle eager explicitly if needed
         ).to(device).eval()
         self.device = device
         
@@ -133,7 +136,7 @@ class OpenDLLMGenerator:
 class QwenFIMGenerator:
     """Generator for Qwen 2.5 Coder with FIM"""
     
-    def __init__(self, model_path: str, device: str = "cuda"):
+    def __init__(self, model_path: str, device: str = "cuda", dtype=torch.bfloat16, attn_impl="sdpa"):
         print(f"Loading Qwen model: {model_path}")
         self.tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
         self.tokenizer.padding_side = "left"
@@ -142,12 +145,14 @@ class QwenFIMGenerator:
             
         self.model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            device_map=device,  # Use explicit device instead of auto
-            torch_dtype=torch.float32,
+            device_map=device if device != "cpu" else None, # Auto device map for GPU, explicit for CPU
+            torch_dtype=dtype,
             trust_remote_code=True,
-            attn_implementation="eager", # sdpa might cause issues on CPU sometimes
+            attn_implementation=attn_impl,
             use_safetensors=True
         )
+        if device == "cpu":
+            self.model = self.model.to(device)
         self.device = device
         
     def format_fim(self, prefix: str, suffix: str) -> str:
@@ -228,13 +233,38 @@ def evaluate_ensemble(args):
         name=args.wandb_name or f"ensemble-{args.task}-{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}",
         config=vars(args)
     )
-    
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Using device: {device}")
+
+    # Determine device and settings
+    if args.device == "auto":
+        if torch.cuda.is_available():
+            device = "cuda"
+            dtype = torch.bfloat16
+            attn_impl = "sdpa"
+        elif torch.backends.mps.is_available():
+            device = "mps"
+            dtype = torch.float16
+            attn_impl = "eager"
+        else:
+            device = "cpu"
+            dtype = torch.float32
+            attn_impl = "eager"
+    else:
+        device = args.device
+        if device == "cuda":
+            dtype = torch.bfloat16
+            attn_impl = "sdpa"
+        elif device == "mps":
+            dtype = torch.float16
+            attn_impl = "eager"
+        else:
+            dtype = torch.float32
+            attn_impl = "eager"
+
+    print(f"Using device: {device} (with {dtype} and {attn_impl})")
     
     # Load models
-    dllm_generator = OpenDLLMGenerator(args.dllm_model_path, device)
-    qwen_generator = QwenFIMGenerator(args.qwen_model_path, device)
+    dllm_generator = OpenDLLMGenerator(args.dllm_model_path, device, dtype, attn_impl)
+    qwen_generator = QwenFIMGenerator(args.qwen_model_path, device, dtype, attn_impl)
     
     # Initialize perplexity calculator
     ppl_calculator = PerplexityCalculator(

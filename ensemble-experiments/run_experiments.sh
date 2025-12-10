@@ -23,7 +23,10 @@ DLLM_STEPS=64
 MAX_NEW_TOKENS=512
 BATCH_SIZE=8
 OUTPUT_DIR="results"
+OUTPUT_DIR="results"
 WANDB_PROJECT="ensemble-code-infilling"
+# Device: auto, cuda, mps, cpu
+DEVICE=${DEVICE:-"auto"}
 
 # Set cache directories if available
 if [ -d "/mnt/disks/data" ]; then
@@ -47,7 +50,9 @@ echo "  Qwen Model: $QWEN_MODEL"
 echo "  Temperature: $TEMPERATURE"
 echo "  DLLM Steps: $DLLM_STEPS"
 echo "  Batch Size: $BATCH_SIZE"
+echo "  Batch Size: $BATCH_SIZE"
 echo "  Output Dir: $OUTPUT_DIR"
+echo "  Device: $DEVICE"
 echo ""
 
 # Create output directory
@@ -72,7 +77,8 @@ run_task() {
         --batch_size "$BATCH_SIZE" \
         --output_dir "$OUTPUT_DIR" \
         --wandb_project "$WANDB_PROJECT" \
-        --perplexity_model "qwen"
+        --perplexity_model "qwen" \
+        --device "$DEVICE"
     
     # Find the most recent results file
     RESULTS_FILE=$(ls -t "$OUTPUT_DIR"/ensemble_${TASK}_results_*.jsonl 2>/dev/null | head -1)
