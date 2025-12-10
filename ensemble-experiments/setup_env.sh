@@ -35,7 +35,7 @@ if [[ "$VER" == 3.13* ]] || [[ "$VER" == 3.14* ]]; then
     fi
     echo "Using: $PYTHON_CMD ($($PYTHON_CMD --version 2>&1))"
 fi
-
+ENV_NAME="ensemble-env"
 echo "Creating virtual environment '$ENV_NAME' with $PYTHON_CMD..."
 $PYTHON_CMD -m venv "$ENV_NAME"
 

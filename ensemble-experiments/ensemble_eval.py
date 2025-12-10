@@ -224,6 +224,64 @@ def load_santacoder_data():
     return list(dataset)
 
 
+def unload_model(generator):
+    """Unload model from GPU and clear cache"""
+    print("Unloading model...")
+    if hasattr(generator, 'model'):
+        del generator.model
+    if hasattr(generator, 'tokenizer'):
+        del generator.tokenizer
+    del generator
+    import gc
+    gc.collect()
+    torch.cuda.empty_cache()
+    if torch.backends.mps.is_available():
+        torch.mps.empty_cache()
+    print("Model unloaded and GPU cache cleared.")
+
+
+def generate_all(generator, dataset, args, is_dllm=False):
+    """Generate completions for the entire dataset"""
+    prefixes = [ex["prompt"] for ex in dataset]
+    suffixes = [ex["suffix"] for ex in dataset]
+    canonical_solutions = [ex["canonical_solution"] for ex in dataset]
+    
+    # Calculate middle lengths for Open-dLLM if needed
+    middle_lens = []
+    if is_dllm:
+        middle_lens = [
+            len(generator.tokenizer.encode(sol, add_special_tokens=False))
+            for sol in canonical_solutions
+        ]
+    
+    all_outputs = []
+    
+    print(f"Generating {len(dataset)} examples...")
+    for i in tqdm(range(0, len(dataset), args.batch_size)):
+        batch_prefixes = prefixes[i:i + args.batch_size]
+        batch_suffixes = suffixes[i:i + args.batch_size]
+        
+        if is_dllm:
+            batch_middle_lens = middle_lens[i:i + args.batch_size]
+            outputs = generator.generate_batch(
+                batch_prefixes,
+                batch_suffixes,
+                batch_middle_lens,
+                steps=args.dllm_steps,
+                temperature=args.temperature
+            )
+        else:
+            outputs = generator.generate_batch(
+                batch_prefixes,
+                batch_suffixes,
+                max_new_tokens=args.max_new_tokens,
+                temperature=args.temperature
+            )
+        all_outputs.extend(outputs)
+        
+    return all_outputs
+
+
 def evaluate_ensemble(args):
     """Main evaluation function"""
     
@@ -262,15 +320,6 @@ def evaluate_ensemble(args):
 
     print(f"Using device: {device} (with {dtype} and {attn_impl})")
     
-    # Load models
-    dllm_generator = OpenDLLMGenerator(args.dllm_model_path, device, dtype, attn_impl)
-    qwen_generator = QwenFIMGenerator(args.qwen_model_path, device, dtype, attn_impl)
-    
-    # Initialize perplexity calculator
-    ppl_calculator = PerplexityCalculator(
-        qwen_generator if args.perplexity_model == "qwen" else dllm_generator
-    )
-    
     # Load dataset
     print(f"Loading {args.task} dataset...")
     if args.task == "humaneval_infill":
@@ -296,12 +345,40 @@ def evaluate_ensemble(args):
         canonical_solutions = canonical_solutions[:args.limit]
         task_ids = task_ids[:args.limit]
     
-    # Calculate middle lengths for Open-dLLM (oracle setting)
-    middle_lens = [
-        len(dllm_generator.tokenizer.encode(sol, add_special_tokens=False))
-        for sol in canonical_solutions
-    ]
+    # Sequential Generation Logic
+    dllm_outputs = []
+    qwen_outputs = []
+    ppl_calculator = None
     
+    if args.perplexity_model == "dllm":
+        # 1. Run Qwen first
+        print("\n=== Phase 1: Qwen Generation ===")
+        qwen_generator = QwenFIMGenerator(args.qwen_model_path, device, dtype, attn_impl)
+        qwen_outputs = generate_all(qwen_generator, dataset, args, is_dllm=False)
+        unload_model(qwen_generator)
+        
+        # 2. Run DLLM second and use it for PPL
+        print("\n=== Phase 2: Open-dLLM Generation & Evaluation ===")
+        dllm_generator = OpenDLLMGenerator(args.dllm_model_path, device, dtype, attn_impl)
+        dllm_outputs = generate_all(dllm_generator, dataset, args, is_dllm=True)
+        ppl_calculator = PerplexityCalculator(dllm_generator)
+        
+    else: # "qwen" (default) or "both" (fallback)
+        if args.perplexity_model == "both":
+            print("Warning: 'both' perplexity model not fully supported in sequential mode. Falling back to 'qwen'.")
+            
+        # 1. Run DLLM first
+        print("\n=== Phase 1: Open-dLLM Generation ===")
+        dllm_generator = OpenDLLMGenerator(args.dllm_model_path, device, dtype, attn_impl)
+        dllm_outputs = generate_all(dllm_generator, dataset, args, is_dllm=True)
+        unload_model(dllm_generator)
+        
+        # 2. Run Qwen second and use it for PPL
+        print("\n=== Phase 2: Qwen Generation & Evaluation ===")
+        qwen_generator = QwenFIMGenerator(args.qwen_model_path, device, dtype, attn_impl)
+        qwen_outputs = generate_all(qwen_generator, dataset, args, is_dllm=False)
+        ppl_calculator = PerplexityCalculator(qwen_generator)
+
     # Results storage
     results = []
     stats = {
@@ -318,80 +395,55 @@ def evaluate_ensemble(args):
         "Ensemble Output", "Winner"
     ])
     
-    # Batch generation and evaluation
-    print(f"\nGenerating and evaluating {len(dataset)} examples...")
-    for i in tqdm(range(0, len(dataset), args.batch_size)):
-        batch_prefixes = prefixes[i:i + args.batch_size]
-        batch_suffixes = suffixes[i:i + args.batch_size]
-        batch_middle_lens = middle_lens[i:i + args.batch_size]
-        batch_canonical = canonical_solutions[i:i + args.batch_size]
-        batch_task_ids = task_ids[i:i + args.batch_size]
+    print("\n=== Phase 3: Calculating Perplexities & Selecting Winners ===")
+    for i, (prefix, suffix, dllm_out, qwen_out, task_id, canonical) in tqdm(enumerate(
+        zip(prefixes, suffixes, dllm_outputs, qwen_outputs, task_ids, canonical_solutions)
+    ), total=len(dataset)):
         
-        # Generate from both models
-        dllm_outputs = dllm_generator.generate_batch(
-            batch_prefixes,
-            batch_suffixes,
-            batch_middle_lens,
-            steps=args.dllm_steps,
-            temperature=args.temperature
+        # Calculate perplexity for both outputs
+        dllm_ppl = ppl_calculator.calculate_perplexity(prefix, dllm_out, suffix)
+        qwen_ppl = ppl_calculator.calculate_perplexity(prefix, qwen_out, suffix)
+        
+        # Select output with lower perplexity
+        if dllm_ppl < qwen_ppl:
+            ensemble_output = dllm_out
+            winner = "dllm"
+            stats["dllm_wins"] += 1
+        else:
+            ensemble_output = qwen_out
+            winner = "qwen"
+            stats["qwen_wins"] += 1
+        
+        stats["total"] += 1
+        
+        # Store result
+        result = {
+            "task_id": task_id,
+            "completion": ensemble_output,
+            "dllm_output": dllm_out,
+            "qwen_output": qwen_out,
+            "dllm_perplexity": float(dllm_ppl),
+            "qwen_perplexity": float(qwen_ppl),
+            "winner": winner,
+            "prefix": prefix,
+            "suffix": suffix,
+            "canonical_solution": canonical
+        }
+        results.append(result)
+        
+        # Add to wandb table (limit prefix/suffix length for readability)
+        table.add_data(
+            task_id,
+            prefix[:200] + "..." if len(prefix) > 200 else prefix,
+            suffix[:200] + "..." if len(suffix) > 200 else suffix,
+            canonical,
+            dllm_out,
+            f"{dllm_ppl:.2f}",
+            qwen_out,
+            f"{qwen_ppl:.2f}",
+            ensemble_output,
+            winner
         )
-        
-        qwen_outputs = qwen_generator.generate_batch(
-            batch_prefixes,
-            batch_suffixes,
-            max_new_tokens=args.max_new_tokens,
-            temperature=args.temperature
-        )
-        
-        # Calculate perplexity and select ensemble output
-        for j, (prefix, suffix, dllm_out, qwen_out, task_id, canonical) in enumerate(
-            zip(batch_prefixes, batch_suffixes, dllm_outputs, qwen_outputs, 
-                batch_task_ids, batch_canonical)
-        ):
-            # Calculate perplexity for both outputs
-            dllm_ppl = ppl_calculator.calculate_perplexity(prefix, dllm_out, suffix)
-            qwen_ppl = ppl_calculator.calculate_perplexity(prefix, qwen_out, suffix)
-            
-            # Select output with lower perplexity
-            if dllm_ppl < qwen_ppl:
-                ensemble_output = dllm_out
-                winner = "dllm"
-                stats["dllm_wins"] += 1
-            else:
-                ensemble_output = qwen_out
-                winner = "qwen"
-                stats["qwen_wins"] += 1
-            
-            stats["total"] += 1
-            
-            # Store result
-            result = {
-                "task_id": task_id,
-                "completion": ensemble_output,
-                "dllm_output": dllm_out,
-                "qwen_output": qwen_out,
-                "dllm_perplexity": float(dllm_ppl),
-                "qwen_perplexity": float(qwen_ppl),
-                "winner": winner,
-                "prefix": prefix,
-                "suffix": suffix,
-                "canonical_solution": canonical
-            }
-            results.append(result)
-            
-            # Add to wandb table (limit prefix/suffix length for readability)
-            table.add_data(
-                task_id,
-                prefix[:200] + "..." if len(prefix) > 200 else prefix,
-                suffix[:200] + "..." if len(suffix) > 200 else suffix,
-                canonical,
-                dllm_out,
-                f"{dllm_ppl:.2f}",
-                qwen_out,
-                f"{qwen_ppl:.2f}",
-                ensemble_output,
-                winner
-            )
     
     # Save results
     os.makedirs(args.output_dir, exist_ok=True)
