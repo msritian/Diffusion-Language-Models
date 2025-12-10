@@ -96,6 +96,8 @@ python -m pip install tqdm
 python -m pip install wandb
 python -m pip install numpy
 python -m pip install scipy
+python -m pip install torchdata
+python -m pip install einops
 
 # Install Open-dLLM components
 echo "Installing Open-dLLM dependencies..."
