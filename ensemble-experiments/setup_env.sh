@@ -12,29 +12,32 @@ echo "============================================================"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Check Python version
-PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
-echo "Python version: $PYTHON_VERSION"
+# Check Python version and find compatible executable
+PYTHON_CMD="python3"
+VER=$($PYTHON_CMD --version 2>&1 | awk '{print $2}')
+echo "Default Python version: $VER"
 
-# Create virtual environment
-ENV_NAME="ensemble-env"
-if [ -d "$ENV_NAME" ]; then
-    echo "Virtual environment '$ENV_NAME' already exists."
-    read -p "Do you want to recreate it? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "Removing existing environment..."
-        rm -rf "$ENV_NAME"
+# If Python is 3.13+, try to find an older version (3.12, 3.11, 3.10)
+if [[ "$VER" == 3.13* ]] || [[ "$VER" == 3.14* ]]; then
+    echo "Warning: Python $VER detected. PyTorch wheels may not be available."
+    echo "Attempting to find a compatible Python version (3.10-3.12)..."
+    
+    if command -v python3.12 &> /dev/null; then
+        PYTHON_CMD="python3.12"
+    elif command -v python3.11 &> /dev/null; then
+        PYTHON_CMD="python3.11"
+    elif command -v python3.10 &> /dev/null; then
+        PYTHON_CMD="python3.10"
     else
-        echo "Using existing environment."
-        source "$ENV_NAME/bin/activate"
-        echo "Environment activated."
-        exit 0
+        echo "Error: No compatible Python version found (3.10-3.12)."
+        echo "Please install Python 3.12 or 3.11 and try again."
+        # Continue anyway, but expect failure
     fi
+    echo "Using: $PYTHON_CMD ($($PYTHON_CMD --version 2>&1))"
 fi
 
-echo "Creating virtual environment '$ENV_NAME'..."
-python3 -m venv "$ENV_NAME"
+echo "Creating virtual environment '$ENV_NAME' with $PYTHON_CMD..."
+$PYTHON_CMD -m venv "$ENV_NAME"
 
 # Activate environment
 source "$ENV_NAME/bin/activate"
@@ -42,9 +45,22 @@ source "$ENV_NAME/bin/activate"
 echo "Upgrading pip..."
 python -m pip install --upgrade pip
 
-# Install PyTorch (CPU version)
-echo "Installing PyTorch with CPU support..."
-python -m pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+# Uninstall existing torch packages to avoid conflicts
+echo "Removing existing PyTorch installations..."
+python -m pip uninstall -y torch torchvision torchaudio
+
+# Install PyTorch
+echo "Installing PyTorch..."
+if command -v nvidia-smi &> /dev/null; then
+    echo "NVIDIA GPU detected. Installing PyTorch with CUDA support..."
+    python -m pip install "torch>=2.1.0" "torchvision>=0.16.0" --index-url https://download.pytorch.org/whl/cu121
+elif [[ $(uname) == "Darwin" ]]; then
+    echo "macOS detected. Installing default PyTorch (MPS/CPU)..."
+    python -m pip install "torch>=2.1.0" "torchvision>=0.16.0"
+else
+    echo "No GPU detected. Installing PyTorch with CPU support..."
+    python -m pip install "torch>=2.1.0" "torchvision>=0.16.0" --index-url https://download.pytorch.org/whl/cpu
+fi
 
 # Install Transformers and related libraries
 echo "Installing Transformers and dependencies..."
@@ -85,7 +101,12 @@ python -m pip install scipy
 echo "Installing Open-dLLM dependencies..."
 if [ -d "../Open-dLLM" ]; then
     cd ../Open-dLLM
-    python -m pip install -e .
+    if [ -f "setup.py" ] || [ -f "pyproject.toml" ]; then
+        python -m pip install -e .
+    else
+        echo "Warning: Open-dLLM directory found but no setup.py or pyproject.toml detected."
+        echo "Skipping Open-dLLM installation. Please ensure the directory is properly synced."
+    fi
     cd "$SCRIPT_DIR"
 else
     echo "Warning: Open-dLLM directory not found. Some features may not work."
