@@ -94,6 +94,10 @@ class OpenDLLMGenerator:
             for p, m, s in zip(tokenized_prompts, middle_lens, suffixes)
         ]
         
+        # Truncate sequences if they are too long to avoid OOM
+        max_length = 2048 # Standard context length
+        sequences = [seq[-max_length:] for seq in sequences]
+        
         # Pad sequences to same length
         max_len = max(len(seq) for seq in sequences)
         padded_seqs = torch.LongTensor([
