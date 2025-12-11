@@ -21,8 +21,7 @@ QWEN_MODEL="Qwen/Qwen2.5-Coder-0.5B"
 TEMPERATURE=0.6
 DLLM_STEPS=64
 MAX_NEW_TOKENS=512
-BATCH_SIZE=8
-OUTPUT_DIR="results"
+BATCH_SIZE=1
 OUTPUT_DIR="results"
 WANDB_PROJECT="ensemble-code-infilling"
 # Device: auto, cuda, mps, cpu
