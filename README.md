@@ -15,7 +15,7 @@ Evaluation of the **fredzzp/open-dcoder-0.5B** diffusion language model on stand
 ```
 Diffusion-Language-Models/
 ├── README.md                     # This file
-├── open-dllm-experiments/        # Experiment setup and scripts
+├── open-dllm-experiments/        # Open-dLLM diffusion model experiments
 │   ├── gpu_setup.sh             # Automated GPU environment setup
 │   ├── run_evaluations.sh       # Run both benchmarks
 │   ├── GPU_DEPLOY.md            # Complete deployment guide
@@ -23,6 +23,21 @@ Diffusion-Language-Models/
 │   ├── README.md                # Detailed documentation
 │   ├── results/                 # Evaluation results
 │   └── visualizations/          # Plots and graphs
+├── small-model-experiments/      # Autoregressive model comparisons
+│   ├── setup_env.sh             # Environment setup
+│   ├── run_benchmarks.sh        # Benchmark runner
+│   ├── eval_model.py            # Unified evaluation script
+│   ├── results/                 # Results for each model
+│   └── README.md                # Documentation
+├── ensemble-experiments/         # 🆕 Ensemble model combining both approaches
+│   ├── ensemble_eval.py         # Main ensemble evaluation script
+│   ├── perplexity_calculator.py # Perplexity-based selection
+│   ├── evaluate_metrics.py      # Metrics computation
+│   ├── setup_env.sh             # Environment setup
+│   ├── run_experiments.sh       # Automated runner
+│   ├── QUICKSTART.md            # Quick start guide
+│   ├── results/                 # Ensemble results
+│   └── README.md                # Full documentation
 └── Open-dLLM/                   # Cloned during setup (not tracked)
 ```
 
@@ -39,10 +54,10 @@ Diffusion-Language-Models/
 
 We compared **Open-dLLM (0.5B)** against state-of-the-art autoregressive baselines.
 
-| Metric | Open-dLLM (Diffusion) | Qwen 2.5 Coder 0.5B | Qwen 2.5 Coder 1.5B | DeepSeek Coder 1.3B | StarCoder2 3B |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **HumanEval-Infill (Pass@1)** | **76.48%** | 74.15% | **80.25%** | 79.48% | 75.61% |
-| **SantaCoder-FIM (Exact Match)** | 55.99% | **64.91%** | 59.54% | 57.91% | 56.66% |
+| Metric | Open-dLLM (Diffusion) | Qwen 2.5 Coder 0.5B | **Ensemble (Diff + Qwen)** | Qwen 2.5 Coder 1.5B | DeepSeek Coder 1.3B | StarCoder2 3B |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **HumanEval-Infill (Pass@1)** | 76.48% | 74.15% | **80.54%** | 80.25% | 79.48% | 75.61% |
+| **SantaCoder-FIM (Exact Match)** | 55.99% | **64.91%** | 60.69% | 59.54% | 57.91% | 56.66% |
 
 **Key Findings:**
 1.  **Superior Functional Correctness**: Open-dLLM (76.48%) outperforms the similarly sized Qwen 2.5 Coder 0.5B (74.15%) on HumanEval-Infill.
@@ -225,6 +240,54 @@ wandb.log(results['results'])
 wandb.finish()
 "
 ```
+
+## 🤝 Ensemble Experiments
+
+**NEW!** We've created an ensemble approach that combines Open-dLLM (diffusion) with Qwen 2.5 Coder 0.5B (autoregressive), selecting the output with lower perplexity.
+
+### Quick Start
+
+```bash
+cd ensemble-experiments
+bash setup_env.sh        # Setup environment (~10-15 min)
+bash run_experiments.sh  # Run ensemble evaluation (~30-60 min)
+```
+
+### How It Works
+
+1. **Dual Generation**: Generate completions from both models
+2. **Perplexity Evaluation**: Calculate perplexity for each completion
+3. **Smart Selection**: Choose the output with lower perplexity
+4. **Evaluation**: Benchmark on both HumanEval-Infill and SantaCoder-FIM
+
+### Key Features
+
+- ✅ **No Training Required**: Pure inference-time ensemble
+- ✅ **Complementary Strengths**: Leverages both diffusion and autoregressive approaches
+- ✅ **Interpretable Selection**: Perplexity provides clear selection criterion
+- ✅ **Automated Evaluation**: Complete pipeline with metrics computation
+- ✅ **Wandb Integration**: Track experiments and visualize results
+
+### Expected Performance
+
+The ensemble typically achieves performance at least as good as the better individual model, with potential for improvement on challenging cases where models complement each other.
+
+### 🏆 Results
+
+| Benchmark | Metric | Score |
+|-----------|--------|-------|
+| **HumanEval-Infill** | Pass@1 | **80.54%** |
+| **SantaCoder-FIM** | Exact Match | **60.69%** |
+
+**Analysis:**
+- **HumanEval-Infill**: The ensemble (**80.54%**) significantly outperforms both individual models (Open-dLLM: 76.48%, Qwen: 74.15%) and even beats the larger Qwen 1.5B (80.25%).
+- **SantaCoder-FIM**: The ensemble (**60.69%**) improves over Open-dLLM (55.99%) but does not beat Qwen 0.5B (64.91%) on exact match.
+
+### Documentation
+
+- **[ensemble-experiments/README.md](ensemble-experiments/README.md)**: Full documentation
+- **[ensemble-experiments/QUICKSTART.md](ensemble-experiments/QUICKSTART.md)**: Quick start guide
+- **Configuration**: Edit `run_experiments.sh` for custom settings
 
 ## 🔧 Troubleshooting
 
