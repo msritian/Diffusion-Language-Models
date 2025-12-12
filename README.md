@@ -54,10 +54,10 @@ Diffusion-Language-Models/
 
 We compared **Open-dLLM (0.5B)** against state-of-the-art autoregressive baselines.
 
-| Metric | Open-dLLM (Diffusion) | Qwen 2.5 Coder 0.5B | Qwen 2.5 Coder 1.5B | DeepSeek Coder 1.3B | StarCoder2 3B |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **HumanEval-Infill (Pass@1)** | **76.48%** | 74.15% | **80.25%** | 79.48% | 75.61% |
-| **SantaCoder-FIM (Exact Match)** | 55.99% | **64.91%** | 59.54% | 57.91% | 56.66% |
+| Metric | Open-dLLM (Diffusion) | Qwen 2.5 Coder 0.5B | **Ensemble (Diff + Qwen)** | Qwen 2.5 Coder 1.5B | DeepSeek Coder 1.3B | StarCoder2 3B |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **HumanEval-Infill (Pass@1)** | 76.48% | 74.15% | **80.54%** | 80.25% | 79.48% | 75.61% |
+| **SantaCoder-FIM (Exact Match)** | 55.99% | **64.91%** | 60.69% | 59.54% | 57.91% | 56.66% |
 
 **Key Findings:**
 1.  **Superior Functional Correctness**: Open-dLLM (76.48%) outperforms the similarly sized Qwen 2.5 Coder 0.5B (74.15%) on HumanEval-Infill.
@@ -271,6 +271,17 @@ bash run_experiments.sh  # Run ensemble evaluation (~30-60 min)
 ### Expected Performance
 
 The ensemble typically achieves performance at least as good as the better individual model, with potential for improvement on challenging cases where models complement each other.
+
+### 🏆 Results
+
+| Benchmark | Metric | Score |
+|-----------|--------|-------|
+| **HumanEval-Infill** | Pass@1 | **80.54%** |
+| **SantaCoder-FIM** | Exact Match | **60.69%** |
+
+**Analysis:**
+- **HumanEval-Infill**: The ensemble (**80.54%**) significantly outperforms both individual models (Open-dLLM: 76.48%, Qwen: 74.15%) and even beats the larger Qwen 1.5B (80.25%).
+- **SantaCoder-FIM**: The ensemble (**60.69%**) improves over Open-dLLM (55.99%) but does not beat Qwen 0.5B (64.91%) on exact match.
 
 ### Documentation
 
